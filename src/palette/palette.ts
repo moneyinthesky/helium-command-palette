@@ -24,6 +24,21 @@ const KIND_LABEL: Record<PaletteItem["kind"], string> = {
   search: "Search",
 };
 
+const MOD_KEY = /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl+";
+
+/** Footer hints for the highlighted row, so ⌘Enter is discoverable. */
+const HINTS: Record<PaletteItem["kind"], [key: string, action: string][]> = {
+  tab: [["↵", "Switch to tab"]],
+  history: [
+    ["↵", "Open in new tab"],
+    [`${MOD_KEY}↵`, "Open here"],
+  ],
+  search: [
+    ["↵", "Search in new tab"],
+    [`${MOD_KEY}↵`, "Search here"],
+  ],
+};
+
 const SVG_NS = "http://www.w3.org/2000/svg";
 
 /** Magnifying glass for the search row, drawn in the text colour. */
@@ -104,6 +119,7 @@ export class Palette {
   private readonly input = el("input", "input");
   private readonly list = el("ul", "results");
   private readonly empty = el("div", "empty");
+  private readonly hints = el("div", "hints");
 
   constructor(
     private readonly container: HTMLElement,
@@ -128,7 +144,8 @@ export class Palette {
     this.list.setAttribute("role", "listbox");
     this.empty.hidden = true;
 
-    panel.append(this.input, this.list, this.empty);
+    this.hints.setAttribute("aria-hidden", "true"); // the same information is in the row's badge
+    panel.append(this.input, this.list, this.empty, this.hints);
     this.container.append(panel);
 
     this.input.addEventListener("input", () => this.update(false));
@@ -228,6 +245,21 @@ export class Palette {
     } else {
       this.input.removeAttribute("aria-activedescendant");
     }
+    this.renderHints();
+  }
+
+  private renderHints(): void {
+    const kind = this.results[this.selected]?.item.kind;
+    const hints: [string, string][] = [...(kind ? HINTS[kind] : []), ["esc", "Close"]];
+    this.hints.replaceChildren(
+      ...hints.map(([key, action]) => {
+        const hint = el("span", "hint");
+        const kbd = el("kbd");
+        kbd.textContent = key;
+        hint.append(kbd, ` ${action}`);
+        return hint;
+      }),
+    );
   }
 
   private move(delta: number): void {

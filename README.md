@@ -1,61 +1,88 @@
 # Command Palette for Helium
 
-An Arc-style, keyboard-driven command palette for [Helium](https://helium.computer) (also works in Chrome). Manifest V3, plain TypeScript, no network requests.
+An Arc-style, keyboard-driven command palette for [Helium](https://helium.computer). It also works in Chrome. Press **⌘K** and type to jump to an open tab, reopen something from your history, or search the web.
 
-> **Status:** step 4 of 6. ⌘K opens the palette over the current page and searches open tabs, history and the web. Extension mode is coming; see [PLAN.md](PLAN.md).
+Manifest V3, plain TypeScript, no frameworks. It makes no network requests of its own and has no analytics.
 
-## Build
+## Install
+
+You need [Node.js](https://nodejs.org) and [pnpm](https://pnpm.io).
 
 ```bash
 pnpm install
-pnpm build        # one-off build into dist/
-pnpm dev          # rebuild on every save
-pnpm typecheck
-pnpm test         # unit tests (scorer, ranking)
-pnpm test:e2e     # test build into dist-e2e/, then drives it in a headless Helium
+pnpm build
 ```
 
-`pnpm test:e2e` uses a separate test build (`dist-e2e/`) that can open the overlay without a real key press and leaves its Shadow DOM inspectable. Don't load that build as your everyday extension. It uses `/Applications/Helium.app` by default; set `BROWSER=/path/to/binary` for another Chromium build.
+Then in Helium (or Chrome):
 
-## Install (unpacked)
+1. Open `chrome://extensions`.
+2. Turn on **Developer mode** (top right).
+3. Click **Load unpacked** and choose the `dist/` folder.
 
-1. Run `pnpm build`.
-2. Open `chrome://extensions` in Helium.
-3. Turn on **Developer mode** (top right).
-4. Click **Load unpacked** and choose the `dist/` folder.
-
-After rebuilding, click the reload icon on the extension's card.
-
-## Shortcut
-
-The default is **⌘K** on macOS and **Ctrl+K** elsewhere. Press it again to close the palette. Change it at `chrome://extensions/shortcuts`.
-
-- Chromium only applies the suggested shortcut on first install. If it clashes with another extension's shortcut, Chromium leaves it unassigned without telling you; set it by hand on the shortcuts page.
-- An extension shortcut takes priority over web apps that use the same key (⌘K in Slack, Linear, GitHub and others).
-- `pnpm check:shortcut` loads `dist/` into a throwaway Helium profile and reports whether the shortcut was assigned. Use `BROWSER=/path/to/binary` for another Chromium build. Recent branded Chrome ignores `--load-extension`, so check Chrome by hand.
+After pulling changes, run `pnpm build` again and click the reload icon on the extension's card. Pages that were already open may keep the previous overlay until you refresh them.
 
 ## Using it
 
-- Type to filter. Words can match the title or the URL, in any order (`pr github`).
-- ↑/↓ or Ctrl+N/Ctrl+P to move, Esc to close. Clicking outside the palette also closes it.
-- **Enter** switches to a tab, or opens a history page or web search in a new tab next to the current one. **⌘Enter** (Ctrl+Enter elsewhere) opens it in the current tab instead. From an empty new tab, Enter reuses that tab.
-- Once you type, there's always a **Search the web** row, so Enter always does something. It uses Helium's default search engine (Settings → Search engine). It's first when nothing matches well, and last when a result matches at the start of a word. Nothing is sent to the search engine until you choose that row: there are no live suggestions.
-- Results come from open tabs and your 2,000 most recent history pages. Each page appears once: if it's open it shows only as its tab, and repeat visits collapse into one history entry. Two URLs count as the same page when they differ only in the `#fragment`, tracking parameters (`utm_*`, `fbclid`, `gclid`, `ref` and similar), `www.`, a trailing slash, or site-specific tracking (YouTube timestamps, Amazon's click tracking). They also count as the same when they share a site, path and page title, which catches tracking parameters nobody has listed. Other query strings still count, so different YouTube videos or Google searches stay separate.
-- Results are ordered first by where your text matches: the start of a word (in the title, or a URL segment like `amazon` in `amazon.co.uk`) beats a match inside a word, which beats letters scattered through the title. Within each of those, open tabs come before history. So `ama` finds Amazon before a tab titled "Vivek Ramaswamy", but `rama` puts that tab first.
-- After that, more recently used items rank higher; for history, so do pages you visit often or typed into the address bar.
-- With nothing typed: open tabs, most recently used first, then recent history shown dimmed. The tab you opened the palette from is always last. Once you type, matching history is shown at full strength.
+Press **⌘K** (Ctrl+K on Windows and Linux) on any page. Press it again, press Esc, or click outside to close.
+
+| Key | Does |
+|---|---|
+| Type | Filter. Words can match the title or URL, in any order (`pr github`). |
+| ↑ ↓ or Ctrl+N / Ctrl+P | Move the highlight |
+| Enter | Switch to a tab, or open a history page or web search in a new tab next to the current one |
+| ⌘Enter (Ctrl+Enter) | Open a history page or web search in the current tab instead |
+| Esc | Close |
+
+The footer shows what Enter and ⌘Enter will do for the highlighted row. From an empty new tab, Enter reuses that tab rather than opening another.
+
+### What you can find
+
+- **Open tabs** in every window.
+- **History:** your 2,000 most recent pages.
+- **Web search:** once you type, there's always a "Search the web" row, so Enter always does something. It uses Helium's default search engine (Settings → Search engine). Nothing is sent to the search engine until you choose that row: there are no live suggestions.
+
+With nothing typed you see open tabs, most recently used first, then recent history (dimmed). The tab you're on is always last.
+
+### How results are ordered
+
+1. **Where your text matches.** The start of a word in the title, or a URL segment like `amazon` in `amazon.co.uk`, beats a match inside a word, which beats letters scattered through the title. So `ama` finds Amazon before a tab titled "Vivek Ramaswamy", but `rama` puts that tab first.
+2. **Open tabs before history**, among equally good matches.
+3. **Recency**, and for history, how often you visit a page and whether you typed it into the address bar.
+
+The search row goes first when nothing matches at the start of a word, and last otherwise.
+
+### Duplicates
+
+Each page appears once. A page that's open shows only as its tab, and repeat visits collapse into one history entry.
+
+Two URLs count as the same page when they differ only in:
+- the `#fragment`
+- tracking parameters: `utm_*`, `fbclid`, `gclid`, `ref` and similar
+- `www.` or a trailing slash
+- site-specific tracking: YouTube timestamps, Amazon's click tracking
+
+They also count as the same when they share a site, path and page title, which catches tracking parameters nobody has listed. Other query strings still count, so different YouTube videos or Google searches stay separate.
 
 ## Where it appears
 
-On ordinary web pages the palette opens as an overlay on top of the page, inside a closed Shadow DOM so the page's styles can't affect it and the page's scripts can't read it.
+On ordinary web pages the palette opens as an overlay on top of the page. It sits inside a closed Shadow DOM, so the page's styles can't affect it and the page's scripts can't read it.
 
-Browsers don't let extensions draw on some pages: `chrome://` pages, other extensions' pages, the Web Store, and pages the browser blocks scripts on. There the palette opens in a small separate window instead, which closes when you click away.
+Browsers don't let extensions draw on some pages: `chrome://` pages, the new-tab page, other extensions' pages, the Web Store, and pages where the browser blocks scripts. There the palette opens in a small separate window instead, which closes when you click away.
+
+## Shortcut
+
+The default is ⌘K on macOS and Ctrl+K elsewhere. To change it, go to `chrome://extensions/shortcuts`.
+
+- Chromium only applies the default shortcut on first install. If it clashes with another extension's shortcut, Chromium leaves it unassigned without telling you, so set it by hand on the shortcuts page.
+- An extension shortcut takes priority over web apps that use the same key: ⌘K in Slack, Linear, GitHub and others opens this palette instead.
 
 ## Known limitations
 
 - **Restricted pages** get the separate window, not the overlay (see above).
-- **Page shortcuts:** keys you type in the overlay are kept from the page's normal key handlers. A page that listens in the capture phase can still see them, though few do.
+- **Page shortcuts:** keys you type in the overlay are hidden from the page's normal key handlers. A page that listens in the capture phase can still see them, though few do.
 - **Fullscreen:** the overlay doesn't show over fullscreen video. Exit fullscreen first.
+- **History depth:** only the 2,000 most recent pages are searched.
+- **Not built (yet):** extension mode (`>` to list, enable and disable extensions), bookmarks, recently closed tabs, and custom commands. See [PLAN.md](PLAN.md). Triggering another extension's toolbar button or commands isn't possible with Chromium's APIs.
 
 ## Permissions
 
@@ -65,9 +92,33 @@ Browsers don't let extensions draw on some pages: `chrome://` pages, other exten
 | `history` | Search your browsing history. It's read locally when the palette opens and never leaves the browser. |
 | `search` | Run a web search with your default search engine when you choose the search row. |
 | `favicon` | Read each row's icon from the browser's local favicon cache, without fetching it from the site. |
-| `activeTab` | When you press the shortcut, lets the extension add the overlay to *that* tab only. No access to any page until you press it. |
+| `activeTab` | When you press the shortcut, lets the extension add the overlay to *that* tab only. It has no access to any page until you press it. |
 | `scripting` | Adds the overlay to the page (used together with `activeTab`). |
 
-There are no host permissions: the extension can't read or change pages on its own.
+There are no host permissions, so the extension can't read or change pages on its own. It exposes nothing to web pages (no web-accessible resources), so sites can't probe for it. Favicons are read by the service worker from the browser's cache and drawn by the palette; the page never loads an extension URL.
 
-The extension exposes nothing to web pages (no web-accessible resources), so sites can't probe for it. The overlay shows favicons by having the service worker read them from the browser's local cache and drawing the image data itself; the page never loads an extension URL.
+## Development
+
+```bash
+pnpm dev             # rebuild dist/ on every save
+pnpm typecheck
+pnpm test            # unit tests: matching, ranking, de-duplication, search row
+pnpm test:e2e        # end-to-end tests in a headless Helium
+pnpm check:shortcut  # does the browser assign the shortcut to a fresh install?
+```
+
+- **End-to-end tests** use a separate test build in `dist-e2e/`. It can open the overlay without a real key press, has access to every site, and leaves its Shadow DOM inspectable. Don't load it as your everyday extension. The test browser can only reach a local test server, never the internet.
+- **Browser:** the end-to-end tests and `check:shortcut` use `/Applications/Helium.app` by default. Set `BROWSER=/path/to/binary` for another Chromium build. Recent branded Chrome ignores the `--load-extension` flag these rely on, so check Chrome by hand.
+- **Manual checks:** a real key press, window focus and how things look can't be automated. Use [TESTING.md](TESTING.md) before a release.
+
+### Layout
+
+| Path | What's there |
+|---|---|
+| `src/background/` | Service worker: the shortcut, opening the overlay or window, actions, favicons |
+| `src/background/providers/` | Sources of results (tabs, history). New sources go here. |
+| `src/core/` | Pure logic shared by both sides: matching, ranking, de-duplication, the search row, messages |
+| `src/palette/` | The palette UI, shared by both surfaces |
+| `src/overlay/` | The in-page overlay (injected content script) |
+| `src/popup/` | The separate-window fallback |
+| `tests/unit/`, `tests/e2e/` | Vitest and Playwright tests |

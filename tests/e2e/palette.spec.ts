@@ -59,4 +59,17 @@ test.describe("palette (popup page)", () => {
 
     await pressAndClose(palette, "Escape");
   });
+
+  test("shows the keys for the highlighted row", async ({ context, extensionId }) => {
+    await (await context.newPage()).goto(pageUrl("Some tab"));
+    const palette = await context.newPage();
+    await palette.goto(`chrome-extension://${extensionId}/palette.html`);
+    const hints = palette.locator(".hints");
+
+    await expect(hints).toContainText("Switch to tab");
+    await palette.locator(".input").fill("zzzz-no-match");
+    await expect(hints).toContainText("Search in new tab");
+    await expect(hints).toContainText(/(⌘|Ctrl\+)↵ Search here/);
+    await expect(hints).toContainText("esc Close");
+  });
 });
