@@ -1,6 +1,6 @@
 {
   "name": "helium-command-palette",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "Arc-style command palette extension for Helium and Chrome",
   "type": "module",
@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "check:shortcut": "node scripts/check-shortcut.mjs",
     "test": "vitest run",
-    "test:e2e": "node scripts/build.mjs --e2e && playwright test"
+    "test:e2e": "node scripts/build.mjs --e2e && playwright test",
+    "icons": "node scripts/icons.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1",

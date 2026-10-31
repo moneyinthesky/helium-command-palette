@@ -20,6 +20,7 @@ const copyStatic = async () => {
   if (e2e) manifest.host_permissions = ["<all_urls>"];
   await writeFile(`${dist}/manifest.json`, JSON.stringify(manifest, null, 2));
   await cp(`${root}src/popup/palette.html`, `${dist}/palette.html`);
+  await cp(`${root}src/icons`, `${dist}/icons`, { recursive: true });
 };
 
 /**

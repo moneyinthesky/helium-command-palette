@@ -105,6 +105,7 @@ pnpm typecheck
 pnpm test            # unit tests: matching, ranking, de-duplication, search row
 pnpm test:e2e        # end-to-end tests in a headless Helium
 pnpm check:shortcut  # does the browser assign the shortcut to a fresh install?
+pnpm icons           # re-render src/icons/*.png from assets/icon.svg (uses Helium)
 ```
 
 - **End-to-end tests** use a separate test build in `dist-e2e/`. It can open the overlay without a real key press, has access to every site, and leaves its Shadow DOM inspectable. Don't load it as your everyday extension. The test browser can only reach a local test server, never the internet.
@@ -122,6 +123,7 @@ pnpm check:shortcut  # does the browser assign the shortcut to a fresh install?
 | `src/overlay/` | The in-page overlay (injected content script) |
 | `src/popup/` | The separate-window fallback |
 | `tests/unit/`, `tests/e2e/` | Vitest and Playwright tests |
+| `assets/icon.svg` | Source for the extension icon; `pnpm icons` renders the PNGs into `src/icons/` |
 
 ## Licence
 
