@@ -7,23 +7,20 @@ import css from "./palette.css";
 export interface PaletteHost {
   /** One promise per source; each source's items show up as soon as they arrive. */
   loadSources(): Promise<PaletteItem[]>[];
+  /** Favicons for the given page URLs; pages without one are left out. */
+  loadIcons(pageUrls: string[]): Promise<Map<string, ImageBitmap>>;
   /** `alternate`: ⌘ (Ctrl elsewhere) was held, asking for the item's secondary action. */
   execute(item: PaletteItem, opts: { alternate: boolean }): Promise<void>;
   close(): void;
 }
 
+/** Canvas resolution for a 16 CSS px icon: sharp on 2x screens. */
+const ICON_PIXELS = 32;
+
 const KIND_LABEL: Record<PaletteItem["kind"], string> = {
   tab: "Tab",
   history: "History",
 };
-
-export function faviconUrl(pageUrl: string): string {
-  // Served from the browser's local favicon cache, so no network request.
-  const url = new URL(chrome.runtime.getURL("/_favicon/"));
-  url.searchParams.set("pageUrl", pageUrl);
-  url.searchParams.set("size", "32");
-  return url.href;
-}
 
 /**
  * Adds styles to a shadow root as a constructed stylesheet. Unlike a <style>
@@ -80,6 +77,9 @@ export class Palette {
   private results: ScoredItem[] = [];
   private selected = 0;
   private busy = false;
+
+  /** Favicons by page URL, kept for as long as the palette is open. */
+  private readonly icons = new Map<string, Promise<ImageBitmap | undefined>>();
 
   private readonly input = el("input", "input");
   private readonly list = el("ul", "results");
@@ -139,7 +139,16 @@ export class Palette {
     this.render();
   }
 
+  /** Asks for every icon the current results need and haven't been asked for, in one request. */
+  private requestIcons(): void {
+    const missing = [...new Set(this.results.map((r) => r.item.url))].filter((u) => !this.icons.has(u));
+    if (missing.length === 0) return;
+    const loaded = this.host.loadIcons(missing).catch(() => new Map<string, ImageBitmap>());
+    for (const url of missing) this.icons.set(url, loaded.then((icons) => icons.get(url)));
+  }
+
   private render(): void {
+    this.requestIcons();
     this.list.replaceChildren(...this.results.map((r, i) => this.renderRow(r, i)));
     this.empty.hidden = this.results.length > 0;
     this.empty.textContent = this.items.length === 0 ? "" : "No matches";
@@ -154,10 +163,11 @@ export class Palette {
     if (item.kind === "history" && this.input.value.trim() === "") row.classList.add("dim");
     row.setAttribute("role", "option");
 
-    const icon = el("img", "icon");
-    icon.alt = "";
-    icon.addEventListener("error", () => (icon.style.visibility = "hidden"), { once: true });
-    icon.src = faviconUrl(item.url);
+    const icon = el("canvas", "icon");
+    icon.width = icon.height = ICON_PIXELS;
+    void this.icons.get(item.url)?.then((bitmap) => {
+      if (bitmap) icon.getContext("2d")?.drawImage(bitmap, 0, 0, ICON_PIXELS, ICON_PIXELS);
+    });
 
     const text = el("div", "text");
     const title = el("div", "title");

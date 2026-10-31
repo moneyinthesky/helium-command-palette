@@ -61,16 +61,29 @@ test.describe("overlay", () => {
     expect(await page.evaluate(() => (window as unknown as { seen: string[] }).seen)).toEqual([]);
   });
 
-  test("works on a page with a strict Content-Security-Policy", async ({ context, worker }) => {
+  test("works on a page with a strict Content-Security-Policy, without loading extension URLs", async ({ context, worker }) => {
+    await (await context.newPage()).goto(webUrl("Another page"));
     const page = await context.newPage();
+    const extensionRequests: string[] = [];
+    page.on("request", (r) => {
+      if (r.url().startsWith("chrome-extension://")) extensionRequests.push(r.url());
+    });
     await page.goto(webUrl("Locked down", { csp: "default-src 'none'" }));
 
     await pressShortcut(worker, page);
     const overlay = page.locator(OVERLAY);
-    // Styles applied (rounded frame) and favicons loaded despite the policy.
+    // Styles applied (rounded frame) and favicons drawn despite the policy.
     await expect(overlay.locator(".frame")).toHaveCSS("border-radius", "12px");
     const icon = overlay.locator(".row .icon").first();
-    await expect.poll(() => icon.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
+    await expect
+      .poll(() =>
+        icon.evaluate((canvas: HTMLCanvasElement) => {
+          const data = canvas.getContext("2d")!.getImageData(0, 0, canvas.width, canvas.height).data;
+          return data.some((value, i) => i % 4 === 3 && value > 0); // any non-transparent pixel
+        }),
+      )
+      .toBe(true);
+    expect(extensionRequests).toEqual([]);
   });
 
   test("replaces an overlay left over from an earlier load of the extension", async ({ context, worker }) => {

@@ -1,6 +1,7 @@
 // The popup-window surface: used where the overlay can't be injected.
 import { request } from "../core/messages";
 import { SOURCES } from "../core/types";
+import { loadIcons } from "../palette/icons";
 import { Palette } from "../palette/palette";
 
 const sourceTabId = Number(new URLSearchParams(location.search).get("sourceTabId")) || undefined;
@@ -19,6 +20,7 @@ root.append(container);
 
 const palette = new Palette(container, {
   loadSources: () => SOURCES.map((source) => request({ type: "items", source, sourceTabId })),
+  loadIcons,
   execute: async (item, { alternate }) => {
     await request({ type: "execute", item, alternate, sourceTabId });
   },

@@ -1,4 +1,4 @@
-import type { PaletteItem, SourceName } from "./types";
+import type { Favicon, PaletteItem, SourceName } from "./types";
 
 /**
  * Requests the palette UI sends to the service worker. `sourceTabId` is the tab
@@ -7,11 +7,13 @@ import type { PaletteItem, SourceName } from "./types";
  */
 export type Request =
   | { type: "items"; source: SourceName; sourceTabId?: number }
-  | { type: "execute"; item: PaletteItem; alternate: boolean; sourceTabId?: number };
+  | { type: "execute"; item: PaletteItem; alternate: boolean; sourceTabId?: number }
+  | { type: "favicons"; pageUrls: string[]; sourceTabId?: undefined };
 
 export interface ResponseMap {
   items: PaletteItem[];
   execute: null;
+  favicons: Favicon[];
 }
 
 export type Response<T = unknown> = { ok: true; data: T } | { ok: false; error: string };

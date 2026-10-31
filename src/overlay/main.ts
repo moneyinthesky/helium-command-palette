@@ -1,8 +1,10 @@
 // The page-overlay surface. The service worker injects this file into the
 // active tab each time the shortcut is pressed; the first run opens the
 // overlay and later runs toggle it.
+import BUILD_ID from "build-id";
 import { request } from "../core/messages";
 import { SOURCES } from "../core/types";
+import { loadIcons } from "../palette/icons";
 import { adoptCss, Palette } from "../palette/palette";
 import css from "./overlay.css";
 
@@ -24,11 +26,11 @@ const ISOLATED_EVENTS = [
 ] as const;
 
 /**
- * Identifies this build and load of the extension. An overlay created by an
- * earlier load (the extension was rebuilt or reloaded while the page stayed
- * open) has stale code and stale favicon URLs, so it's replaced, not reused.
+ * Identifies this build of the overlay. One left on the page by an earlier
+ * build (the extension was rebuilt and reloaded while the page stayed open)
+ * runs stale code, so it's replaced, not reused.
  */
-const LOAD_ID = `${__BUILD_ID__} ${chrome.runtime.getURL("_favicon/")}`;
+const LOAD_ID = BUILD_ID;
 
 interface Overlay {
   loadId: string;
@@ -80,7 +82,8 @@ function createOverlay(): Overlay {
 
     const palette = new Palette(frame, {
       loadSources: () => SOURCES.map((source) => request({ type: "items", source })),
-      execute: async (item, { alternate }) => {
+      loadIcons,
+  execute: async (item, { alternate }) => {
         // Get out of the way first: the action may navigate this very page.
         close();
         await request({ type: "execute", item, alternate });

@@ -1,6 +1,7 @@
 import type { Request, Response } from "../core/messages";
 import type { SourceName } from "../core/types";
 import { execute } from "./actions";
+import { getFavicons } from "./favicons";
 import { togglePalette } from "./launcher";
 import { historyProvider } from "./providers/history";
 import { tabsProvider } from "./providers/tabs";
@@ -21,6 +22,8 @@ async function handleRequest(req: Request, sender: chrome.runtime.MessageSender)
     case "execute":
       await execute(req.item, req.alternate, sourceTabId);
       return null;
+    case "favicons":
+      return getFavicons(req.pageUrls);
   }
 }
 

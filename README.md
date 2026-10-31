@@ -62,10 +62,10 @@ Browsers don't let extensions draw on some pages: `chrome://` pages, other exten
 |---|---|
 | `tabs` | Read the titles and URLs of open tabs, and switch to one. |
 | `history` | Search your browsing history. It's read locally when the palette opens and never leaves the browser. |
-| `favicon` | Show each row's icon from the browser's local favicon cache, without fetching it from the site. |
+| `favicon` | Read each row's icon from the browser's local favicon cache, without fetching it from the site. |
 | `activeTab` | When you press the shortcut, lets the extension add the overlay to *that* tab only. No access to any page until you press it. |
 | `scripting` | Adds the overlay to the page (used together with `activeTab`). |
 
 There are no host permissions: the extension can't read or change pages on its own.
 
-The favicon cache (`_favicon/*`) is listed as a web-accessible resource so the overlay can show icons inside web pages. It uses `use_dynamic_url`, so sites can't use it to detect that the extension is installed.
+The extension exposes nothing to web pages (no web-accessible resources), so sites can't probe for it. The overlay shows favicons by having the service worker read them from the browser's local cache and drawing the image data itself; the page never loads an extension URL.

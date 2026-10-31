@@ -43,3 +43,10 @@ export interface ScoredItem {
   /** Character positions in `item.displayUrl` that matched the query. */
   urlMatches: number[];
 }
+
+/** A favicon's image bytes, sent from the service worker to the palette. */
+export interface Favicon {
+  pageUrl: string;
+  mime: string;
+  base64: string;
+}

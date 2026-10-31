@@ -22,17 +22,29 @@ const copyStatic = async () => {
   await cp(`${root}src/popup/palette.html`, `${dist}/palette.html`);
 };
 
+/**
+ * `import BUILD_ID from "build-id"` gives a value that changes on every build
+ * and rebuild, so an injected overlay can tell it's newer than one already on
+ * the page.
+ */
+const buildId = {
+  name: "build-id",
+  setup(b) {
+    b.onResolve({ filter: /^build-id$/ }, () => ({ path: "build-id", namespace: "build-id" }));
+    b.onLoad({ filter: /.*/, namespace: "build-id" }, () => ({
+      contents: `export default ${JSON.stringify(Date.now().toString(36) + Math.random().toString(36).slice(2, 6))};`,
+      loader: "js",
+    }));
+  },
+};
+
 /** @type {esbuild.BuildOptions} */
 const shared = {
   outdir: dist,
   bundle: true,
   target: "chrome121",
   loader: { ".css": "text" },
-  define: {
-    __E2E__: String(e2e),
-    // Lets an injected overlay tell it was built after one already on the page.
-    __BUILD_ID__: JSON.stringify(Date.now().toString(36)),
-  },
+  define: { __E2E__: String(e2e) },
   sourcemap: watch ? "inline" : false,
   minify: !watch,
   logLevel: "info",
@@ -49,7 +61,7 @@ const builds = [
     plugins: [{ name: "copy-static", setup: (b) => b.onEnd(copyStatic) }],
   },
   // Injected with chrome.scripting.executeScript, which runs classic scripts only.
-  { ...shared, entryPoints: { overlay: `${root}src/overlay/main.ts` }, format: "iife" },
+  { ...shared, entryPoints: { overlay: `${root}src/overlay/main.ts` }, format: "iife", plugins: [buildId] },
 ];
 
 if (watch) {
