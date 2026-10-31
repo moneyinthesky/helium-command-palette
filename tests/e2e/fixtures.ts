@@ -14,6 +14,27 @@ const executablePath = process.env.BROWSER ?? "/Applications/Helium.app/Contents
 
 let origin = "";
 
+/** Helium's bundled uBlock Origin, which `--disable-extensions-except` leaves running. */
+const UBLOCK_ID = "blockjmkbacgjkknlgpkjjiijinjdanf";
+
+/**
+ * Turns off uBlock Origin, if it's installed. While its filter lists load after
+ * launch it reloads every page that opened in the meantime, which wipes the
+ * overlay mid-test and drops keystrokes. chrome.management can't touch it, so
+ * this flips its switch on chrome://extensions.
+ */
+async function disableUblock(context: BrowserContext): Promise<void> {
+  const page = await context.newPage();
+  await page.goto("chrome://extensions");
+  await page.locator("extensions-item").first().waitFor(); // this extension is always listed
+  const toggle = page.locator(`extensions-item#${UBLOCK_ID} #enableToggle`);
+  if ((await toggle.count()) > 0) {
+    await toggle.click();
+    await expect.poll(() => toggle.evaluate((el) => (el as HTMLInputElement).checked)).toBe(false);
+  }
+  await page.close();
+}
+
 type Fixtures = { context: BrowserContext; worker: Worker; extensionId: string };
 
 export const test = base.extend<Fixtures, { server: void }>({
@@ -49,6 +70,7 @@ export const test = base.extend<Fixtures, { server: void }>({
         "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1",
       ],
     });
+    await disableUblock(context);
     await use(context);
     await context.close();
     await rm(profile, { recursive: true, force: true });

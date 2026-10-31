@@ -55,8 +55,9 @@ test.describe("web search", () => {
     await page.keyboard.press("ControlOrMeta+Enter");
     // The start page's tab now holds the search (Playwright sees only the failed-load error page).
     await expect.poll(async () => (await tabUrls(worker)).some((u) => /zxqv(\+|%20)borrow/.test(u))).toBe(true);
-    const urls = await tabUrls(worker);
-    expect(urls).toHaveLength(tabsBefore);
-    expect(urls).not.toContain(webUrl("Start page"));
+    // The pending URL clears a moment before the failed load commits, briefly
+    // showing the start page again, so wait for the tab to settle.
+    await expect.poll(() => tabUrls(worker)).not.toContain(webUrl("Start page"));
+    expect(await tabUrls(worker)).toHaveLength(tabsBefore);
   });
 });
