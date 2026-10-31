@@ -71,14 +71,16 @@ describe("rank", () => {
     expect(ids(rank(items, "github", { now: NOW }))).toEqual(["tab:2", "tab:1"]);
   });
 
-  it("lists tabs, then recent history, then the source tab with an empty query", () => {
+  it("lists only tabs with an empty query, source tab last", () => {
     const items = [
       visit("https://old.com", "Old", 50),
       tab(1, "Source", "https://s.com", 0, true),
+      bookmark("https://seen.com", "Visited", "", 1),
       visit("https://new.com", "New", 1),
       tab(2, "Other", "https://o.com", 2),
     ];
-    expect(ids(rank(items, "", { now: NOW }))).toEqual(["tab:2", "history:https://new.com", "history:https://old.com", "tab:1"]);
+    expect(ids(rank(items, "", { now: NOW }))).toEqual(["tab:2", "tab:1"]);
+    expect(ids(rank(items, "  ", { now: NOW }))).toEqual(["tab:2", "tab:1"]);
   });
 
   describe("word starts beat matches inside words; tabs win within each", () => {
@@ -161,16 +163,6 @@ describe("rank", () => {
     it("prefer ones you visit", () => {
       const items = [bookmark("https://a.com/news", "News"), bookmark("https://b.com/news", "News", "", 1, 40)];
       expect(ids(rank(items, "news", { now: NOW }))).toEqual(["bookmark:https://b.com/news", "bookmark:https://a.com/news"]);
-    });
-
-    it("only show with nothing typed when visited, among history", () => {
-      const items = [
-        bookmark("https://never.com", "Never visited"),
-        bookmark("https://seen.com", "Visited", "", 1),
-        visit("https://old.com", "Old", 50),
-        tab(1, "Tab", "https://t.com", 5),
-      ];
-      expect(ids(rank(items, "", { now: NOW }))).toEqual(["tab:1", "bookmark:https://seen.com", "history:https://old.com"]);
     });
   });
 

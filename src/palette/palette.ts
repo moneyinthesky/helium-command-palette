@@ -194,7 +194,8 @@ export class Palette {
     this.requestIcons();
     this.list.replaceChildren(...this.results.map((r, i) => this.renderRow(r, i)));
     this.empty.hidden = this.results.length > 0;
-    this.empty.textContent = this.items.length === 0 ? "" : "No matches";
+    // With nothing typed only tabs show, and those may not have loaded yet.
+    this.empty.textContent = this.input.value.trim() ? "No matches" : "";
     this.syncSelection();
   }
 
@@ -203,9 +204,6 @@ export class Palette {
     const row = el("li", "row");
     row.id = `row-${index}`;
     row.dataset.kind = item.kind; // styled per kind: tint and badge colour
-    // With nothing typed, history (and visited bookmarks standing in for it) is
-    // just filler under the tabs: show it quieter.
-    if (item.kind !== "tab" && this.input.value.trim() === "") row.classList.add("dim");
     row.setAttribute("role", "option");
 
     const icon = item.kind === "search" ? searchIcon() : this.favicon(item.url);

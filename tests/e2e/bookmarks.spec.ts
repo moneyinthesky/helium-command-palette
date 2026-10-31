@@ -48,10 +48,10 @@ test.describe("bookmarks", () => {
 
     await pressShortcut(worker, page);
     const overlay = page.locator(OVERLAY);
-    // The visited bookmark stands in for its history entry; the other stays hidden.
-    const rustRow = overlay.locator(".row").filter({ hasText: "My Rust bookmark" });
-    await expect(rustRow).toHaveClass(/\bdim\b/);
-    await expect(overlay.locator(".row").filter({ hasText: "Never visited" })).toHaveCount(0);
+    await expect(overlay.locator(".row").filter({ hasText: "Start page" })).toHaveCount(1);
+    // Give bookmarks and history time to arrive, then check neither is listed.
+    await page.waitForTimeout(200);
+    await expect(overlay.locator(".row").filter({ hasText: /My Rust bookmark|Rust docs|Never visited/ })).toHaveCount(0);
 
     await page.keyboard.type("rust");
     const rows = overlay.locator(".row").filter({ hasNotText: "Search the web" });

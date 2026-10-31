@@ -1,23 +1,9 @@
 import { matchFields, type Quality, tokenize } from "./fuzzy";
-import type { ScoredItem, SourceItem } from "./types";
+import type { ScoredItem, SourceItem, TabItem } from "./types";
 
 export const MAX_RESULTS = 10;
 
 const HOUR = 60 * 60 * 1000;
-
-/**
- * With nothing typed: open tabs, then history, then the tab you're already on.
- * A bookmarked page you've visited stands in for its history entry, which it hid.
- */
-function tier(item: SourceItem): number {
-  if (item.kind !== "tab") return 1;
-  return item.isSource ? 0 : 2;
-}
-
-/** Bookmarks only show once you type, apart from visited ones standing in for history. */
-function showsWithoutQuery(item: SourceItem): boolean {
-  return item.kind !== "bookmark" || item.lastVisitTime > 0;
-}
 
 const KIND_ORDER: Record<SourceItem["kind"], number> = { history: 0, bookmark: 1, tab: 2 };
 
@@ -34,10 +20,6 @@ function group(item: SourceItem, quality: Quality): number {
 
 /** Larger than any match score plus boost, so groups never mix. */
 const GROUP_SIZE = 1e6;
-
-function lastUsed(item: SourceItem): number {
-  return item.kind === "tab" ? item.lastAccessed : item.lastVisitTime;
-}
 
 /** Frecency: visited often, typed by hand, visited lately. Up to about 35. */
 function frecency(visitCount: number, typedCount: number, lastVisitTime: number, now: number): number {
@@ -67,9 +49,9 @@ function boost(item: SourceItem, now: number): number {
   }
 }
 
-/** With nothing typed: most recently used first within each group. */
-function emptyQueryScore(item: SourceItem): number {
-  return tier(item) * 1e15 + lastUsed(item);
+/** With nothing typed: most recently used first, the tab you're already on last. */
+function emptyQueryScore(tab: TabItem): number {
+  return (tab.isSource ? 0 : 1e15) + tab.lastAccessed;
 }
 
 export function rank(
@@ -82,7 +64,8 @@ export function rank(
 
   for (const item of items) {
     if (tokens.length === 0) {
-      if (!showsWithoutQuery(item)) continue;
+      // Only open tabs show until you type; bookmarks and history wait for a query.
+      if (item.kind !== "tab") continue;
       scored.push({ item, score: emptyQueryScore(item), titleMatches: [], urlMatches: [], folderMatches: [] });
       continue;
     }

@@ -42,7 +42,7 @@ The footer shows what Enter and ⌘Enter will do for the highlighted row. From a
 - **History:** your 2,000 most recent pages.
 - **Web search:** once you type, there's always a "Search the web" row, so Enter always does something. It uses Helium's default search engine (Settings → Search engine). Nothing is sent to the search engine until you choose that row: there are no live suggestions.
 
-With nothing typed you see open tabs, most recently used first, then recent history (dimmed). Bookmarks only appear once you type, except that a bookmarked page you've visited shows in its history entry's place. The tab you're on is always last.
+With nothing typed you see only open tabs, most recently used first, with the tab you're on last. Bookmarks and history appear once you type.
 
 ### How results are ordered
 

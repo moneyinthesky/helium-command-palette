@@ -103,7 +103,7 @@ test.describe("history", () => {
     await expect(rows.first().locator(".badge")).toHaveText("Tab");
   });
 
-  test("shows history quieter than tabs until you type", async ({ context, worker }) => {
+  test("hides history until you type", async ({ context, worker }) => {
     await visitAndClose(context, "Rust docs");
     const page = await context.newPage();
     await page.goto(webUrl("Start page"));
@@ -113,12 +113,13 @@ test.describe("history", () => {
     await pressShortcut(worker, page);
     const overlay = page.locator(OVERLAY);
     const rustRow = overlay.locator(".row").filter({ hasText: "Rust docs" });
-    const tabRow = overlay.locator(".row").filter({ hasText: "Other tab" });
-    await expect(rustRow).toHaveClass(/\bdim\b/);
-    await expect(tabRow).not.toHaveClass(/\bdim\b/);
+    await expect(overlay.locator(".row").filter({ hasText: "Other tab" })).toHaveCount(1);
+    // Give history time to arrive, then check it isn't listed.
+    await page.waitForTimeout(200);
+    await expect(rustRow).toHaveCount(0);
 
     await page.keyboard.type("rust");
     await expect(rustRow).toHaveCount(1);
-    await expect(rustRow).not.toHaveClass(/\bdim\b/);
+    await expect(rustRow.locator(".badge")).toHaveText("History");
   });
 });

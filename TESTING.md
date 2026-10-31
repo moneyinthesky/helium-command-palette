@@ -41,8 +41,8 @@
 
 ## History
 
-- [ ] With nothing typed, history appears after the tabs, dimmed. Arrowing onto a history row brings it to full strength.
-- [ ] Typing part of a closed site's name finds it with a **History** badge, at full strength.
+- [ ] With nothing typed, no history appears, only tabs.
+- [ ] Typing part of a closed site's name finds it with a **History** badge.
 - [ ] Enter opens it in a new tab directly to the right of the current one.
 - [ ] ⌘Enter opens it in the current tab instead.
 - [ ] From an empty new tab (fallback window), Enter opens it in that same tab, with no extra tab.
@@ -50,7 +50,7 @@
 
 ## Bookmarks
 
-- [ ] With nothing typed, bookmarks you've never visited don't appear.
+- [ ] With nothing typed, no bookmarks appear, not even ones you've visited.
 - [ ] Typing part of a bookmark's title finds it with a **Bookmark** badge and its folder path before the URL, e.g. "Work / Docs · example.com".
 - [ ] Typing a folder's name finds the bookmarks in it, with the folder name highlighted.
 - [ ] Enter opens it in a new tab next to the current one; ⌘Enter opens it in the current tab.
