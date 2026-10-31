@@ -126,6 +126,42 @@
   --kind: var(--kind-search);
 }
 
+/* Rows in the actions menu: no tint, the shortcut (if any) on the right. */
+.row[data-kind="action"] {
+  --kind: transparent;
+}
+
+.row[data-kind="action"] .title {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Above the actions menu: which row the actions are for. */
+.crumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.crumb[hidden] {
+  display: none;
+}
+
+.crumb-title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.back {
+  flex: none;
+  width: 12px;
+  height: 12px;
+}
+
 /* The selection layer goes over the kind tint rather than replacing it. */
 .row[aria-selected="true"] {
   background-image: linear-gradient(var(--selected), var(--selected));

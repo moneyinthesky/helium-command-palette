@@ -1,6 +1,6 @@
 import type { Request, Response } from "../core/messages";
 import type { SourceName } from "../core/types";
-import { execute } from "./actions";
+import { run } from "./actions";
 import { getFavicons } from "./favicons";
 import { togglePalette } from "./launcher";
 import { bookmarksProvider } from "./providers/bookmarks";
@@ -21,14 +21,11 @@ async function handleRequest(req: Request, sender: chrome.runtime.MessageSender)
   switch (req.type) {
     case "items":
       return providers[req.source].getItems({ sourceTabId });
-    case "execute":
-      await execute(req.item, req.alternate, sourceTabId);
+    case "run":
+      await run(req.item, req.action, sourceTabId);
       return null;
     case "favicons":
       return getFavicons(req.pageUrls);
-    case "closeTab":
-      await chrome.tabs.remove(req.tabId);
-      return null;
   }
 }
 

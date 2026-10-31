@@ -33,9 +33,22 @@ Press **⌘K** (Ctrl+K on Windows and Linux) on any page. Press it again, press 
 | ⌘Enter (Ctrl+Enter) | Open a bookmark, history page, address or web search in the current tab instead |
 | ⇧Enter | Search the web for what you typed, whichever row is highlighted. ⇧⌘Enter (Ctrl+⇧Enter) searches in the current tab. |
 | ⌘⌫ (Ctrl+⌫) | Close the highlighted tab. The palette stays open, so you can close several in a row. On other rows the key edits your text as usual. |
+| Tab, or → at the end of your text | Show everything you can do with the highlighted row (see below) |
 | Esc | Close |
 
 The footer shows what Enter and ⌘Enter will do for the highlighted row. From an empty new tab, Enter reuses that tab rather than opening another.
+
+### Actions
+
+Tab on a row lists what you can do with it, with the row's title above the list. Type to filter (`pin`, `copy mark`), Enter to run one, and Esc, Tab or ← (with nothing typed) to go back to your results as you left them.
+
+| Row | Actions |
+|---|---|
+| Tab | Switch to tab (↵), Close tab (⌘⌫), Copy link, Pin or Unpin, Mute (only while it's playing sound) or Unmute, Reload, Duplicate, Move to new window, Copy as Markdown link |
+| Bookmark, history, address | Open in new tab (↵), Open here (⌘↵), Open in new window, Copy link, Copy as Markdown link |
+| Search the web | Search in new tab (↵), Search here (⌘↵), Search in new window |
+
+Closing, pinning, muting and reloading a tab keep the palette open, with the row updated, so you can do several in a row. Everything else closes it. Markdown links escape brackets in the title, so `[Title](url)` pastes cleanly.
 
 ### What you can find
 

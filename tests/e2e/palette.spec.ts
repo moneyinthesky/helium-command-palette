@@ -84,7 +84,6 @@ test.describe("palette (popup page)", () => {
 
     await input.fill("close me");
     await expect(titles.first()).toHaveText("Close me");
-    await expect(palette.locator(".hints")).toContainText(/(⌘|Ctrl\+)⌫ Close tab/);
     const tabsBefore = await countTabs();
 
     await palette.keyboard.press("ControlOrMeta+Backspace");

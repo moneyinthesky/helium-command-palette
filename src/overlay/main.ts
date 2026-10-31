@@ -42,6 +42,24 @@ declare global {
   var __commandPalette: Overlay | undefined;
 }
 
+/**
+ * Puts text on the clipboard from the page. The Clipboard API only exists on
+ * https:// and local pages; elsewhere this falls back to the copy command on a
+ * hidden field inside the overlay, which needs the key press that got us here.
+ */
+async function copy(text: string, root: ShadowRoot): Promise<void> {
+  if (window.isSecureContext && navigator.clipboard) return navigator.clipboard.writeText(text);
+  const field = document.createElement("textarea");
+  field.value = text;
+  field.style.position = "fixed";
+  field.style.opacity = "0";
+  root.append(field);
+  field.select();
+  const copied = document.execCommand("copy");
+  field.remove();
+  if (!copied) throw new Error("The page didn't allow copying");
+}
+
 function createOverlay(): Overlay {
   let host: HTMLElement | null = null;
   let previousFocus: Element | null = null;
@@ -90,14 +108,12 @@ function createOverlay(): Overlay {
     const palette = new Palette(frame, {
       loadSources: () => SOURCES.map((source) => request({ type: "items", source })),
       loadIcons,
-      execute: async (item, { alternate }) => {
+      run: async (item, action, { closing }) => {
         // Get out of the way first: the action may navigate this very page.
-        close();
-        await request({ type: "execute", item, alternate });
+        if (closing) close();
+        await request({ type: "run", item, action });
       },
-      closeTab: async (tabId) => {
-        await request({ type: "closeTab", tabId });
-      },
+      copy: (text) => copy(text, root),
       close,
     });
     palette.mount();

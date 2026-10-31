@@ -1,4 +1,5 @@
-import type { PaletteItem } from "../core/types";
+import type { ActionId } from "../core/actions";
+import type { PaletteItem, TabItem } from "../core/types";
 import { isOpenable } from "../core/url";
 
 /** Pages with nothing worth keeping: opening something replaces them instead of adding a tab. */
@@ -54,21 +55,58 @@ async function search(query: string, inPlace: boolean, sourceTabId?: number): Pr
   await chrome.search.query({ text, tabId });
 }
 
-export async function execute(item: PaletteItem, alternate: boolean, sourceTabId?: number): Promise<void> {
-  switch (item.kind) {
-    case "tab":
+async function runOnTab(tab: TabItem, action: ActionId): Promise<void> {
+  switch (action) {
+    case "open":
       // Focus the window first so the tab switch is visible straight away.
-      await chrome.windows.update(item.windowId, { focused: true });
-      await chrome.tabs.update(item.tabId, { active: true });
+      await chrome.windows.update(tab.windowId, { focused: true });
+      await chrome.tabs.update(tab.tabId, { active: true });
       return;
-    // Enter opens a new tab; ⌘Enter replaces the current page.
-    case "bookmark":
-    case "history":
-    case "url":
-      await openUrl(item.url, alternate, sourceTabId);
+    case "closeTab":
+      await chrome.tabs.remove(tab.tabId);
       return;
-    case "search":
-      await search(item.query, alternate, sourceTabId);
+    case "pin":
+    case "unpin":
+      await chrome.tabs.update(tab.tabId, { pinned: action === "pin" });
+      return;
+    case "mute":
+    case "unmute":
+      await chrome.tabs.update(tab.tabId, { muted: action === "mute" });
+      return;
+    case "reload":
+      await chrome.tabs.reload(tab.tabId);
+      return;
+    case "duplicate": {
+      const copy = await chrome.tabs.duplicate(tab.tabId);
+      await chrome.windows.update(tab.windowId, { focused: true });
+      if (copy?.id !== undefined) await chrome.tabs.update(copy.id, { active: true });
+      return;
+    }
+    case "moveToWindow":
+      await chrome.windows.create({ tabId: tab.tabId, focused: true });
       return;
   }
+  throw new Error(`Can't ${action} a tab`);
+}
+
+/** Runs an action from the palette. Copying happens in the palette itself, so it never gets here. */
+export async function run(item: PaletteItem, action: ActionId, sourceTabId?: number): Promise<void> {
+  if (item.kind === "tab") return runOnTab(item, action);
+  // Enter opens a new tab; ⌘Enter replaces the current page.
+  const inPlace = action === "openHere";
+  switch (action) {
+    case "open":
+    case "openHere":
+      return item.kind === "search" ? search(item.query, inPlace, sourceTabId) : openUrl(item.url, inPlace, sourceTabId);
+    case "openWindow":
+      if (item.kind === "search") {
+        const text = item.query.trim();
+        if (text) await chrome.search.query({ text, disposition: "NEW_WINDOW" });
+        return;
+      }
+      if (!isOpenable(item.url)) throw new Error(`Refusing to open ${item.url}`);
+      await chrome.windows.create({ url: item.url, focused: true });
+      return;
+  }
+  throw new Error(`Can't ${action} a ${item.kind} row`);
 }

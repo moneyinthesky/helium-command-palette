@@ -21,12 +21,10 @@ root.append(container);
 const palette = new Palette(container, {
   loadSources: () => SOURCES.map((source) => request({ type: "items", source, sourceTabId })),
   loadIcons,
-  execute: async (item, { alternate }) => {
-    await request({ type: "execute", item, alternate, sourceTabId });
+  run: async (item, action) => {
+    await request({ type: "run", item, action, sourceTabId });
   },
-  closeTab: async (tabId) => {
-    await request({ type: "closeTab", tabId });
-  },
+  copy: (text) => navigator.clipboard.writeText(text),
   close: () => void close(),
 });
 palette.mount();

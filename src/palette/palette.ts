@@ -1,3 +1,14 @@
+import {
+  type Action,
+  type ActionId,
+  actionForKey,
+  actionsFor,
+  filterActions,
+  markdownLink,
+  type Shortcut,
+  type ShownAction,
+  tabAfter,
+} from "../core/actions";
 import { mergeItems } from "../core/merge";
 import { rank } from "../core/rank";
 import { forcedSearch, searchItem, withQueryRows } from "../core/search";
@@ -10,9 +21,13 @@ export interface PaletteHost {
   loadSources(): Promise<SourceItem[]>[];
   /** Favicons for the given page URLs; pages without one are left out. */
   loadIcons(pageUrls: string[]): Promise<Map<string, ImageBitmap>>;
-  /** `alternate`: ⌘ (Ctrl elsewhere) was held, asking for the item's secondary action. */
-  execute(item: PaletteItem, opts: { alternate: boolean }): Promise<void>;
-  closeTab(tabId: number): Promise<void>;
+  /**
+   * Runs an action in the service worker. With `closing`, the palette closes
+   * once it's done; the overlay gets out of the way first, since the action
+   * may navigate the very page it's on.
+   */
+  run(item: PaletteItem, action: ActionId, opts: { closing: boolean }): Promise<void>;
+  copy(text: string): Promise<void>;
   close(): void;
 }
 
@@ -29,29 +44,13 @@ const KIND_LABEL: Record<PaletteItem["kind"], string> = {
 
 const MOD_KEY = /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl+";
 
-/** Footer hints for the highlighted row, so ⌘Enter is discoverable. */
-const HINTS: Record<PaletteItem["kind"], [key: string, action: string][]> = {
-  tab: [
-    ["↵", "Switch to tab"],
-    [`${MOD_KEY}⌫`, "Close tab"],
-  ],
-  bookmark: [
-    ["↵", "Open in new tab"],
-    [`${MOD_KEY}↵`, "Open here"],
-  ],
-  history: [
-    ["↵", "Open in new tab"],
-    [`${MOD_KEY}↵`, "Open here"],
-  ],
-  search: [
-    ["↵", "Search in new tab"],
-    [`${MOD_KEY}↵`, "Search here"],
-  ],
-  url: [
-    ["↵", "Open in new tab"],
-    [`${MOD_KEY}↵`, "Open here"],
-  ],
-};
+const PLACEHOLDER = "Search tabs, bookmarks, history or the web…";
+
+const KEY_LABEL: Record<string, string> = { Enter: "↵", Backspace: "⌫" };
+
+function shortcutLabel({ key, mod }: Shortcut): string {
+  return `${mod ? MOD_KEY : ""}${KEY_LABEL[key] ?? key}`;
+}
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -68,6 +67,9 @@ function glyph(shapes: [tag: string, attrs: Record<string, string>][], className
   }
   return svg;
 }
+
+/** The arrow before the row's title at the top of the actions menu. */
+const backIcon = () => glyph([["path", { d: "M10 3.5 5.5 8l4.5 4.5" }]], "back");
 
 /** Magnifying glass for the search row. */
 const searchIcon = () =>
@@ -165,18 +167,32 @@ function highlighted(text: string, matches: number[]): DocumentFragment {
   return frag;
 }
 
+/** The actions menu for one row, shown in place of the results. */
+interface Menu {
+  item: PaletteItem;
+  actions: Action[];
+  shown: ShownAction[];
+  /** What the results were filtered by, and which row was highlighted, to go back to. */
+  query: string;
+  resultId: string;
+  resultIndex: number;
+}
+
 /** The palette panel: input plus result list. Each surface mounts it into an element inside a shadow root. */
 export class Palette {
   private lists: SourceItem[][] = [];
   private items: SourceItem[] = [];
   private results: ScoredItem[] = [];
+  /** The highlighted row: a result, or an action while the menu is open. */
   private selected = 0;
+  private menu: Menu | null = null;
   private busy = false;
 
   /** Favicons by page URL, kept for as long as the palette is open. */
   private readonly icons = new Map<string, Promise<ImageBitmap | undefined>>();
 
   private readonly input = el("input", "input");
+  private readonly crumb = el("div", "crumb");
   private readonly list = el("ul", "results");
   private readonly empty = el("div", "empty");
   private readonly hints = el("div", "hints");
@@ -194,21 +210,22 @@ export class Palette {
     panel.setAttribute("aria-label", "Command palette");
 
     this.input.type = "text";
-    this.input.placeholder = "Search tabs, bookmarks, history or the web…";
+    this.input.placeholder = PLACEHOLDER;
     this.input.spellcheck = false;
     this.input.autocomplete = "off";
     this.input.setAttribute("role", "combobox");
     this.input.setAttribute("aria-controls", "results");
     this.input.setAttribute("aria-expanded", "true");
+    this.crumb.hidden = true;
     this.list.id = "results";
     this.list.setAttribute("role", "listbox");
     this.empty.hidden = true;
 
     this.hints.setAttribute("aria-hidden", "true"); // the same information is in the row's badge
-    panel.append(this.input, this.list, this.empty, this.hints);
+    panel.append(this.input, this.crumb, this.list, this.empty, this.hints);
     this.container.append(panel);
 
-    this.input.addEventListener("input", () => this.update(false));
+    this.input.addEventListener("input", () => (this.menu ? this.filterMenu() : this.update(false)));
     this.input.addEventListener("keydown", (e) => this.onKeyDown(e));
     this.focus();
 
@@ -217,8 +234,10 @@ export class Palette {
         (items) => {
           this.lists[i] = items;
           this.items = mergeItems(this.lists.filter(Boolean));
+          // Behind an open menu, the results wait until you go back to them.
+          if (this.menu) this.rerank();
           // Don't yank the highlight away from a row the user has moved to.
-          this.update(this.selected !== 0);
+          else this.update(this.selected !== 0);
         },
         (err: unknown) => console.error("[palette] failed to load items", err),
       );
@@ -250,21 +269,24 @@ export class Palette {
   }
 
   private render(): void {
-    this.requestIcons();
-    this.list.replaceChildren(...this.results.map((r, i) => this.renderRow(r, i)));
-    this.empty.hidden = this.results.length > 0;
-    // With nothing typed only tabs show, and those may not have loaded yet.
-    this.empty.textContent =
-      forcedSearch(this.input.value) === "" ? "Type what to search the web for" : this.input.value.trim() ? "No matches" : "";
+    if (this.menu) {
+      this.list.replaceChildren(...this.menu.shown.map((shown, i) => this.renderAction(shown, i)));
+      this.empty.hidden = this.menu.shown.length > 0;
+      this.empty.textContent = "No matching actions";
+    } else {
+      this.requestIcons();
+      this.list.replaceChildren(...this.results.map((r, i) => this.renderRow(r, i)));
+      this.empty.hidden = this.results.length > 0;
+      // With nothing typed only tabs show, and those may not have loaded yet.
+      this.empty.textContent =
+        forcedSearch(this.input.value) === "" ? "Type what to search the web for" : this.input.value.trim() ? "No matches" : "";
+    }
     this.syncSelection();
   }
 
   private renderRow(result: ScoredItem, index: number): HTMLLIElement {
     const { item } = result;
-    const row = el("li", "row");
-    row.id = `row-${index}`;
-    row.dataset.kind = item.kind; // styled per kind: tint and badge colour
-    row.setAttribute("role", "option");
+    const row = this.optionRow(index, item.kind); // styled per kind: tint and badge colour
 
     const icon =
       item.kind === "search" ? searchIcon() : this.favicon(item.url, item.kind === "url" ? globeIcon : undefined);
@@ -305,6 +327,33 @@ export class Palette {
       row.append(where);
     }
     row.append(badge);
+    row.addEventListener("click", (e) => {
+      const actions = actionsFor(item);
+      void this.perform(item, actionForKey(actions, { key: "Enter", mod: e.metaKey || e.ctrlKey })!);
+    });
+    return row;
+  }
+
+  private renderAction({ action, matches }: ShownAction, index: number): HTMLLIElement {
+    const row = this.optionRow(index, "action");
+    const label = el("div", "title");
+    label.append(highlighted(action.label, matches));
+    row.append(label);
+    if (action.shortcut) {
+      const kbd = el("kbd");
+      kbd.textContent = shortcutLabel(action.shortcut);
+      row.append(kbd);
+    }
+    row.addEventListener("click", () => this.menu && void this.perform(this.menu.item, action));
+    return row;
+  }
+
+  /** A selectable row that follows the mouse and leaves focus in the input. */
+  private optionRow(index: number, kind: string): HTMLLIElement {
+    const row = el("li", "row");
+    row.id = `row-${index}`;
+    row.dataset.kind = kind;
+    row.setAttribute("role", "option");
     row.addEventListener("mousemove", () => {
       if (this.selected !== index) {
         this.selected = index;
@@ -312,7 +361,6 @@ export class Palette {
       }
     });
     row.addEventListener("mousedown", (e) => e.preventDefault()); // keep focus in the input
-    row.addEventListener("click", (e) => void this.run(this.results[index]?.item, e.metaKey || e.ctrlKey));
     return row;
   }
 
@@ -327,13 +375,17 @@ export class Palette {
     return canvas;
   }
 
+  private rowCount(): number {
+    return this.menu ? this.menu.shown.length : this.results.length;
+  }
+
   private syncSelection(): void {
     for (const [i, row] of [...this.list.children].entries()) {
       const on = i === this.selected;
       row.setAttribute("aria-selected", String(on));
       if (on) row.scrollIntoView({ block: "nearest" });
     }
-    if (this.results.length > 0) {
+    if (this.rowCount() > 0) {
       this.input.setAttribute("aria-activedescendant", `row-${this.selected}`);
     } else {
       this.input.removeAttribute("aria-activedescendant");
@@ -342,11 +394,22 @@ export class Palette {
   }
 
   private renderHints(): void {
-    const kind = this.results[this.selected]?.item.kind;
-    const hints: [string, string][] = [...(kind ? HINTS[kind] : [])];
-    // A way to search without going down to the search row.
-    if (kind && kind !== "search" && this.typedSearch()) hints.push(["⇧↵", "Search the web"]);
-    hints.push(["esc", "Close"]);
+    const hints: [string, string][] = [];
+    const item = this.results[this.selected]?.item;
+    if (this.menu) {
+      hints.push(["↵", "Run"], ["esc", "Back"]);
+    } else if (item) {
+      // What Enter and ⌘Enter do; the rest are in the actions menu.
+      for (const { label, shortcut } of actionsFor(item)) {
+        if (shortcut?.key === "Enter") hints.push([shortcutLabel(shortcut), label]);
+      }
+      hints.push(["⇥", "Actions"]);
+      // A way to search without going down to the search row.
+      if (item.kind !== "search" && this.typedSearch()) hints.push(["⇧↵", "Search the web"]);
+      hints.push(["esc", "Close"]);
+    } else {
+      hints.push(["esc", "Close"]);
+    }
     this.hints.replaceChildren(
       ...hints.map(([key, action]) => {
         const hint = el("span", "hint");
@@ -359,48 +422,93 @@ export class Palette {
   }
 
   private move(delta: number): void {
-    const n = this.results.length;
+    const n = this.rowCount();
     if (n === 0) return;
     this.selected = (this.selected + delta + n) % n;
     this.syncSelection();
   }
 
   private onKeyDown(e: KeyboardEvent): void {
+    if (e.isComposing) return;
     const ctrlOnly = e.ctrlKey && !e.metaKey && !e.altKey;
+    const mod = e.metaKey || e.ctrlKey;
+    const plain = !mod && !e.altKey && !e.shiftKey;
+    const atEnd = this.input.selectionStart === this.input.value.length && this.input.selectionEnd === this.input.value.length;
     if (e.key === "ArrowDown" || (ctrlOnly && e.key === "n")) {
       this.move(1);
     } else if (e.key === "ArrowUp" || (ctrlOnly && e.key === "p")) {
       this.move(-1);
-    } else if (e.key === "Enter" && e.shiftKey && !e.isComposing) {
-      void this.run(this.typedSearch(), e.metaKey || e.ctrlKey);
-    } else if (e.key === "Enter" && !e.isComposing) {
-      void this.run(this.results[this.selected]?.item, e.metaKey || e.ctrlKey);
-    } else if (e.key === "Backspace" && (e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && this.highlightedTab()) {
-      // Only on a tab row: elsewhere the key edits the text as usual.
-      this.closeTab(this.highlightedTab()!);
+    } else if (e.key === "Tab" && plain) {
+      if (this.menu) this.closeMenu();
+      else this.openMenu();
+    } else if (e.key === "ArrowRight" && plain && atEnd && !this.menu && this.results.length > 0) {
+      this.openMenu();
+    } else if (e.key === "ArrowLeft" && plain && this.menu && this.input.value === "") {
+      this.closeMenu();
     } else if (e.key === "Escape") {
-      this.host.close();
+      if (this.menu) this.closeMenu();
+      else this.host.close();
+    } else if (e.key === "Enter" && this.menu) {
+      const shown = this.menu.shown[this.selected];
+      if (shown) void this.perform(this.menu.item, shown.action);
+    } else if (e.key === "Enter" && e.shiftKey) {
+      const search = this.typedSearch();
+      if (search) void this.perform(search, actionForKey(actionsFor(search), { key: "Enter", mod })!);
     } else {
-      return;
+      // Shortcuts for the highlighted row, or the row the menu is for: Enter, ⌘Enter, ⌘⌫.
+      const item = this.menu?.item ?? this.results[this.selected]?.item;
+      const action = item && !e.altKey && !e.shiftKey ? actionForKey(actionsFor(item), { key: e.key, mod }) : undefined;
+      // Anything else, Backspace on a row without ⌘⌫ included, edits the text as usual.
+      if (!item || !action) return;
+      void this.perform(item, action);
     }
     e.preventDefault();
   }
 
-  private highlightedTab(): TabItem | undefined {
-    const item = this.results[this.selected]?.item;
-    return item?.kind === "tab" ? item : undefined;
+  /** Shows what you can do with the highlighted row, in place of the results. */
+  private openMenu(): void {
+    const result = this.results[this.selected];
+    if (!result) return;
+    const actions = actionsFor(result.item);
+    this.menu = {
+      item: result.item,
+      actions,
+      shown: filterActions(actions, ""),
+      query: this.input.value,
+      resultId: result.item.id,
+      resultIndex: this.selected,
+    };
+    this.input.value = "";
+    this.input.placeholder = "Filter actions…";
+    this.crumb.replaceChildren(backIcon(), Object.assign(el("span", "crumb-title"), { textContent: result.item.title }));
+    this.crumb.hidden = false;
+    this.selected = 0;
+    this.render();
   }
 
-  /** Closes the tab and drops its row, keeping the palette open and the highlight in place. */
-  private closeTab(tab: TabItem): void {
-    const index = this.selected;
-    this.lists = this.lists.map((list) => list.filter((item) => item.id !== tab.id));
-    // A history entry or bookmark it was hiding comes back, since the page is no longer open.
-    this.items = mergeItems(this.lists.filter(Boolean));
-    this.rerank();
-    this.selected = Math.min(index, Math.max(0, this.results.length - 1));
+  private filterMenu(): void {
+    if (!this.menu) return;
+    this.menu.shown = filterActions(this.menu.actions, this.input.value);
+    this.selected = 0;
     this.render();
-    this.host.closeTab(tab.tabId).catch((err: unknown) => console.error("[palette] failed to close tab", err));
+  }
+
+  /** Back to the results, as they were: same text, same row highlighted. */
+  private closeMenu(): void {
+    this.leaveMenu();
+    this.render();
+  }
+
+  private leaveMenu(): void {
+    const menu = this.menu;
+    if (!menu) return;
+    this.menu = null;
+    this.input.value = menu.query;
+    this.input.placeholder = PLACEHOLDER;
+    this.crumb.hidden = true;
+    // Results may have changed behind the menu, as more sources loaded.
+    const index = this.results.findIndex((r) => r.item.id === menu.resultId);
+    this.selected = index >= 0 ? index : Math.min(menu.resultIndex, Math.max(0, this.results.length - 1));
   }
 
   /** A web search for what was typed, whichever row is highlighted. */
@@ -409,15 +517,40 @@ export class Palette {
     return text ? searchItem(text) : undefined;
   }
 
-  private async run(item: PaletteItem | undefined, alternate: boolean): Promise<void> {
-    if (!item || this.busy) return;
+  private async perform(item: PaletteItem, action: Action): Promise<void> {
+    if (this.busy) return;
+    if (item.kind === "tab" && action.staysOpen) {
+      this.applyToTab(item, action.id);
+      return;
+    }
     this.busy = true;
     try {
-      await this.host.execute(item, { alternate });
+      if (action.id === "copyLink") await this.host.copy(item.url);
+      else if (action.id === "copyMarkdown") await this.host.copy(markdownLink(item.title, item.url));
+      else await this.host.run(item, action.id, { closing: true });
     } catch (err) {
       console.error("[palette] action failed", err);
     } finally {
       this.host.close();
     }
+  }
+
+  /**
+   * Runs an action that keeps the palette open (close, pin, mute, reload) and
+   * updates the tab's row straight away, back in the results with the
+   * highlight on it, or in its place if the tab was closed.
+   */
+  private applyToTab(tab: TabItem, action: ActionId): void {
+    const after = tabAfter(tab, action);
+    this.lists = this.lists.map((list) => list.flatMap((item) => (item.id !== tab.id ? [item] : after ? [after] : [])));
+    // A closed tab's history entry or bookmark comes back, since the page is no longer open.
+    this.items = mergeItems(this.lists.filter(Boolean));
+    this.leaveMenu();
+    const index = this.selected;
+    this.rerank();
+    const same = this.results.findIndex((r) => r.item.id === tab.id);
+    this.selected = same >= 0 ? same : Math.min(index, Math.max(0, this.results.length - 1));
+    this.render();
+    this.host.run(tab, action, { closing: false }).catch((err: unknown) => console.error("[palette] action failed", err));
   }
 }
