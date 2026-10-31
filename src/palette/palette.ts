@@ -1,12 +1,13 @@
 import { mergeItems } from "../core/merge";
 import { rank } from "../core/rank";
-import type { PaletteItem, ScoredItem } from "../core/types";
+import { withSearchRow } from "../core/search";
+import type { PaletteItem, ScoredItem, SourceItem } from "../core/types";
 import css from "./palette.css";
 
 /** What a surface (popup window, page overlay) provides to the palette. */
 export interface PaletteHost {
   /** One promise per source; each source's items show up as soon as they arrive. */
-  loadSources(): Promise<PaletteItem[]>[];
+  loadSources(): Promise<SourceItem[]>[];
   /** Favicons for the given page URLs; pages without one are left out. */
   loadIcons(pageUrls: string[]): Promise<Map<string, ImageBitmap>>;
   /** `alternate`: ⌘ (Ctrl elsewhere) was held, asking for the item's secondary action. */
@@ -20,7 +21,26 @@ const ICON_PIXELS = 32;
 const KIND_LABEL: Record<PaletteItem["kind"], string> = {
   tab: "Tab",
   history: "History",
+  search: "Search",
 };
+
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+/** Magnifying glass for the search row, drawn in the text colour. */
+function searchIcon(): SVGSVGElement {
+  const svg = document.createElementNS(SVG_NS, "svg");
+  svg.setAttribute("class", "icon glyph");
+  svg.setAttribute("viewBox", "0 0 16 16");
+  svg.setAttribute("aria-hidden", "true");
+  const circle = document.createElementNS(SVG_NS, "circle");
+  circle.setAttribute("cx", "7");
+  circle.setAttribute("cy", "7");
+  circle.setAttribute("r", "4.5");
+  const handle = document.createElementNS(SVG_NS, "path");
+  handle.setAttribute("d", "M10.5 10.5 14 14");
+  svg.append(circle, handle);
+  return svg;
+}
 
 /**
  * Adds styles to a shadow root as a constructed stylesheet. Unlike a <style>
@@ -72,8 +92,8 @@ function highlighted(text: string, matches: number[]): DocumentFragment {
 
 /** The palette panel: input plus result list. Each surface mounts it into an element inside a shadow root. */
 export class Palette {
-  private lists: PaletteItem[][] = [];
-  private items: PaletteItem[] = [];
+  private lists: SourceItem[][] = [];
+  private items: SourceItem[] = [];
   private results: ScoredItem[] = [];
   private selected = 0;
   private busy = false;
@@ -98,7 +118,7 @@ export class Palette {
     panel.setAttribute("aria-label", "Command palette");
 
     this.input.type = "text";
-    this.input.placeholder = "Search tabs and history…";
+    this.input.placeholder = "Search tabs, history or the web…";
     this.input.spellcheck = false;
     this.input.autocomplete = "off";
     this.input.setAttribute("role", "combobox");
@@ -134,14 +154,15 @@ export class Palette {
 
   private update(keepSelection: boolean): void {
     const selectedId = keepSelection ? this.results[this.selected]?.item.id : undefined;
-    this.results = rank(this.items, this.input.value);
+    this.results = withSearchRow(rank(this.items, this.input.value), this.input.value);
     this.selected = Math.max(0, this.results.findIndex((r) => r.item.id === selectedId));
     this.render();
   }
 
   /** Asks for every icon the current results need and haven't been asked for, in one request. */
   private requestIcons(): void {
-    const missing = [...new Set(this.results.map((r) => r.item.url))].filter((u) => !this.icons.has(u));
+    const urls = this.results.filter((r) => r.item.kind !== "search").map((r) => r.item.url);
+    const missing = [...new Set(urls)].filter((u) => !this.icons.has(u));
     if (missing.length === 0) return;
     const loaded = this.host.loadIcons(missing).catch(() => new Map<string, ImageBitmap>());
     for (const url of missing) this.icons.set(url, loaded.then((icons) => icons.get(url)));
@@ -163,11 +184,7 @@ export class Palette {
     if (item.kind === "history" && this.input.value.trim() === "") row.classList.add("dim");
     row.setAttribute("role", "option");
 
-    const icon = el("canvas", "icon");
-    icon.width = icon.height = ICON_PIXELS;
-    void this.icons.get(item.url)?.then((bitmap) => {
-      if (bitmap) icon.getContext("2d")?.drawImage(bitmap, 0, 0, ICON_PIXELS, ICON_PIXELS);
-    });
+    const icon = item.kind === "search" ? searchIcon() : this.favicon(item.url);
 
     const text = el("div", "text");
     const title = el("div", "title");
@@ -189,6 +206,15 @@ export class Palette {
     row.addEventListener("mousedown", (e) => e.preventDefault()); // keep focus in the input
     row.addEventListener("click", (e) => void this.run(index, e.metaKey || e.ctrlKey));
     return row;
+  }
+
+  private favicon(pageUrl: string): HTMLCanvasElement {
+    const canvas = el("canvas", "icon");
+    canvas.width = canvas.height = ICON_PIXELS;
+    void this.icons.get(pageUrl)?.then((bitmap) => {
+      if (bitmap) canvas.getContext("2d")?.drawImage(bitmap, 0, 0, ICON_PIXELS, ICON_PIXELS);
+    });
+    return canvas;
   }
 
   private syncSelection(): void {

@@ -1,4 +1,4 @@
-import type { Favicon, PaletteItem, SourceName } from "./types";
+import type { Favicon, PaletteItem, SourceItem, SourceName } from "./types";
 
 /**
  * Requests the palette UI sends to the service worker. `sourceTabId` is the tab
@@ -11,7 +11,7 @@ export type Request =
   | { type: "favicons"; pageUrls: string[]; sourceTabId?: undefined };
 
 export interface ResponseMap {
-  items: PaletteItem[];
+  items: SourceItem[];
   execute: null;
   favicons: Favicon[];
 }

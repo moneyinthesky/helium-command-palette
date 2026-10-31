@@ -41,7 +41,13 @@ export const test = base.extend<Fixtures, { server: void }>({
     const context = await chromium.launchPersistentContext(profile, {
       executablePath,
       headless: true,
-      args: [`--disable-extensions-except=${dist}`, `--load-extension=${dist}`],
+      args: [
+        `--disable-extensions-except=${dist}`,
+        `--load-extension=${dist}`,
+        // Nothing but the local test server resolves, so no test can reach the
+        // network, even through navigations Playwright's routing doesn't see.
+        "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1",
+      ],
     });
     await use(context);
     await context.close();

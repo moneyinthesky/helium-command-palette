@@ -99,6 +99,13 @@
   height: 16px;
 }
 
+.glyph {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+
 .text {
   flex: 1;
   min-width: 0;

@@ -53,8 +53,9 @@ test.describe("palette (popup page)", () => {
     await palette.keyboard.press("Control+p");
     await expect(selected.locator(".title")).toHaveText(first!);
 
+    // With no matches, the web search row is all that's left.
     await palette.locator(".input").fill("zzzz-no-match");
-    await expect(palette.locator(".empty")).toHaveText("No matches");
+    await expect(palette.locator(".row .badge")).toHaveText(["Search"]);
 
     await pressAndClose(palette, "Escape");
   });

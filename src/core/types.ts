@@ -1,3 +1,5 @@
+import type { Quality } from "./fuzzy";
+
 /** Fields every palette row shares, whatever provider produced it. */
 interface BaseItem {
   /** Stable across snapshots, e.g. "tab:123". */
@@ -28,8 +30,17 @@ export interface HistoryItem extends BaseItem {
   typedCount: number;
 }
 
-/** Union of every item kind; search and extension items join in later steps. */
-export type PaletteItem = TabItem | HistoryItem;
+/** The "search the web" row. Built from the query, not loaded from a source. */
+export interface SearchItem extends BaseItem {
+  kind: "search";
+  query: string;
+}
+
+/** Items loaded from a source and ranked against the query. */
+export type SourceItem = TabItem | HistoryItem;
+
+/** Every kind of row; extension items join in a later step. */
+export type PaletteItem = SourceItem | SearchItem;
 
 /** Where palette items come from. Each is loaded separately so fast ones show first. */
 export const SOURCES = ["tabs", "history"] as const;
@@ -38,6 +49,8 @@ export type SourceName = (typeof SOURCES)[number];
 export interface ScoredItem {
   item: PaletteItem;
   score: number;
+  /** Where the query matched; absent with an empty query or for the search row. */
+  quality?: Quality;
   /** Character positions in `item.title` that matched the query. */
   titleMatches: number[];
   /** Character positions in `item.displayUrl` that matched the query. */

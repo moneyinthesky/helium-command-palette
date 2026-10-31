@@ -2,7 +2,7 @@
 
 An Arc-style, keyboard-driven command palette for [Helium](https://helium.computer) (also works in Chrome). Manifest V3, plain TypeScript, no network requests.
 
-> **Status:** step 3 of 6. ⌘K opens the palette over the current page and searches open tabs and history. The search row and extension mode are coming; see [PLAN.md](PLAN.md).
+> **Status:** step 4 of 6. ⌘K opens the palette over the current page and searches open tabs, history and the web. Extension mode is coming; see [PLAN.md](PLAN.md).
 
 ## Build
 
@@ -38,7 +38,8 @@ The default is **⌘K** on macOS and **Ctrl+K** elsewhere. Press it again to clo
 
 - Type to filter. Words can match the title or the URL, in any order (`pr github`).
 - ↑/↓ or Ctrl+N/Ctrl+P to move, Esc to close. Clicking outside the palette also closes it.
-- **Enter** switches to a tab, or opens a history page in a new tab next to the current one. **⌘Enter** (Ctrl+Enter elsewhere) opens a history page in the current tab instead. From an empty new tab, Enter reuses that tab.
+- **Enter** switches to a tab, or opens a history page or web search in a new tab next to the current one. **⌘Enter** (Ctrl+Enter elsewhere) opens it in the current tab instead. From an empty new tab, Enter reuses that tab.
+- Once you type, there's always a **Search the web** row, so Enter always does something. It uses Helium's default search engine (Settings → Search engine). It's first when nothing matches well, and last when a result matches at the start of a word. Nothing is sent to the search engine until you choose that row: there are no live suggestions.
 - Results come from open tabs and your 2,000 most recent history pages. Each page appears once: if it's open it shows only as its tab, and repeat visits collapse into one history entry. Two URLs count as the same page when they differ only in the `#fragment`, tracking parameters (`utm_*`, `fbclid`, `gclid`, `ref` and similar), `www.`, a trailing slash, or site-specific tracking (YouTube timestamps, Amazon's click tracking). They also count as the same when they share a site, path and page title, which catches tracking parameters nobody has listed. Other query strings still count, so different YouTube videos or Google searches stay separate.
 - Results are ordered first by where your text matches: the start of a word (in the title, or a URL segment like `amazon` in `amazon.co.uk`) beats a match inside a word, which beats letters scattered through the title. Within each of those, open tabs come before history. So `ama` finds Amazon before a tab titled "Vivek Ramaswamy", but `rama` puts that tab first.
 - After that, more recently used items rank higher; for history, so do pages you visit often or typed into the address bar.
@@ -62,6 +63,7 @@ Browsers don't let extensions draw on some pages: `chrome://` pages, other exten
 |---|---|
 | `tabs` | Read the titles and URLs of open tabs, and switch to one. |
 | `history` | Search your browsing history. It's read locally when the palette opens and never leaves the browser. |
+| `search` | Run a web search with your default search engine when you choose the search row. |
 | `favicon` | Read each row's icon from the browser's local favicon cache, without fetching it from the site. |
 | `activeTab` | When you press the shortcut, lets the extension add the overlay to *that* tab only. No access to any page until you press it. |
 | `scripting` | Adds the overlay to the page (used together with `activeTab`). |

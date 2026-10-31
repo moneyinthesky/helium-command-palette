@@ -1,8 +1,8 @@
-import type { HistoryItem, PaletteItem } from "./types";
+import type { HistoryItem, SourceItem } from "./types";
 import { pageKey, titleKey } from "./url";
 
 /** Every key under which an item counts as "the same page" as another. */
-function sameKeys(item: PaletteItem): string[] {
+function sameKeys(item: SourceItem): string[] {
   const byTitle = titleKey(item.url, item.title);
   return byTitle ? [pageKey(item.url), byTitle] : [pageKey(item.url)];
 }
@@ -11,7 +11,7 @@ function sameKeys(item: PaletteItem): string[] {
  * Combines items from every source. A page that's open in a tab only appears
  * as the tab, never again as a history entry.
  */
-export function mergeItems(lists: PaletteItem[][]): PaletteItem[] {
+export function mergeItems(lists: SourceItem[][]): SourceItem[] {
   const all = lists.flat();
   const open = new Set(all.filter((i) => i.kind === "tab").flatMap(sameKeys));
   return all.filter((i) => i.kind !== "history" || !sameKeys(i).some((k) => open.has(k)));

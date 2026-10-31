@@ -95,7 +95,7 @@ test.describe("history", () => {
     await pressShortcut(worker, page);
     await expect(page.locator(OVERLAY).locator(".input")).toBeFocused();
     await page.keyboard.type("open and visited");
-    const rows = page.locator(OVERLAY).locator(".row");
+    const rows = page.locator(OVERLAY).locator(".row").filter({ hasNotText: "Search the web" });
     // Give history time to arrive, then check it didn't add a duplicate.
     await expect.poll(() => worker.evaluate(() => chrome.history.search({ text: "Open and visited" }).then((r) => r.length))).toBe(1);
     await page.waitForTimeout(200);
