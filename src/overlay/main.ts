@@ -2,6 +2,7 @@
 // active tab each time the shortcut is pressed; the first run opens the
 // overlay and later runs toggle it.
 import { request } from "../core/messages";
+import { SOURCES } from "../core/types";
 import { adoptCss, Palette } from "../palette/palette";
 import css from "./overlay.css";
 
@@ -22,7 +23,15 @@ const ISOLATED_EVENTS = [
   "wheel",
 ] as const;
 
+/**
+ * Identifies this build and load of the extension. An overlay created by an
+ * earlier load (the extension was rebuilt or reloaded while the page stayed
+ * open) has stale code and stale favicon URLs, so it's replaced, not reused.
+ */
+const LOAD_ID = `${__BUILD_ID__} ${chrome.runtime.getURL("_favicon/")}`;
+
 interface Overlay {
+  loadId: string;
   toggle(): void;
 }
 
@@ -70,9 +79,11 @@ function createOverlay(): Overlay {
     for (const type of ISOLATED_EVENTS) host.addEventListener(type, (e) => e.stopPropagation());
 
     const palette = new Palette(frame, {
-      loadItems: () => request({ type: "snapshot" }),
-      execute: async (item, { newTab }) => {
-        await request({ type: "execute", item, newTab });
+      loadSources: () => SOURCES.map((source) => request({ type: "items", source })),
+      execute: async (item, { alternate }) => {
+        // Get out of the way first: the action may navigate this very page.
+        close();
+        await request({ type: "execute", item, alternate });
       },
       close,
     });
@@ -84,9 +95,13 @@ function createOverlay(): Overlay {
   }
 
   return {
+    loadId: LOAD_ID,
     toggle: () => (host ? close() : open()),
   };
 }
 
-globalThis.__commandPalette ??= createOverlay();
+if (globalThis.__commandPalette?.loadId !== LOAD_ID) {
+  document.getElementById(HOST_ID)?.remove();
+  globalThis.__commandPalette = createOverlay();
+}
 globalThis.__commandPalette.toggle();

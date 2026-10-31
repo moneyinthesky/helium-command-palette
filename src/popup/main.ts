@@ -1,5 +1,6 @@
 // The popup-window surface: used where the overlay can't be injected.
 import { request } from "../core/messages";
+import { SOURCES } from "../core/types";
 import { Palette } from "../palette/palette";
 
 const sourceTabId = Number(new URLSearchParams(location.search).get("sourceTabId")) || undefined;
@@ -17,9 +18,9 @@ container.className = "window";
 root.append(container);
 
 const palette = new Palette(container, {
-  loadItems: () => request({ type: "snapshot", sourceTabId }),
-  execute: async (item, { newTab }) => {
-    await request({ type: "execute", item, newTab });
+  loadSources: () => SOURCES.map((source) => request({ type: "items", source, sourceTabId })),
+  execute: async (item, { alternate }) => {
+    await request({ type: "execute", item, alternate, sourceTabId });
   },
   close: () => void close(),
 });

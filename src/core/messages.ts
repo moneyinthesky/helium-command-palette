@@ -1,12 +1,16 @@
-import type { PaletteItem } from "./types";
+import type { PaletteItem, SourceName } from "./types";
 
-/** Requests the palette UI sends to the service worker. */
+/**
+ * Requests the palette UI sends to the service worker. `sourceTabId` is the tab
+ * the palette was opened from; the overlay leaves it out and the worker uses
+ * the sender's tab instead. `alternate` is set when ⌘ (Ctrl elsewhere) was held.
+ */
 export type Request =
-  | { type: "snapshot"; sourceTabId?: number }
-  | { type: "execute"; item: PaletteItem; newTab: boolean };
+  | { type: "items"; source: SourceName; sourceTabId?: number }
+  | { type: "execute"; item: PaletteItem; alternate: boolean; sourceTabId?: number };
 
 export interface ResponseMap {
-  snapshot: PaletteItem[];
+  items: PaletteItem[];
   execute: null;
 }
 

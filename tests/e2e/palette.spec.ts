@@ -54,7 +54,7 @@ test.describe("palette (popup page)", () => {
     await expect(selected.locator(".title")).toHaveText(first!);
 
     await palette.locator(".input").fill("zzzz-no-match");
-    await expect(palette.locator(".empty")).toHaveText("No matching tabs");
+    await expect(palette.locator(".empty")).toHaveText("No matches");
 
     await pressAndClose(palette, "Escape");
   });

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { rank } from "../../src/core/rank";
-import type { TabItem } from "../../src/core/types";
-import { toDisplayUrl } from "../../src/core/url";
+import type { HistoryItem, TabItem } from "../../src/core/types";
+import { isOpenable, toDisplayUrl } from "../../src/core/url";
 
 const NOW = 1_700_000_000_000;
 const HOUR = 3_600_000;
@@ -17,6 +17,19 @@ function tab(id: number, title: string, url: string, ageHours: number, isSource 
     displayUrl: toDisplayUrl(url),
     lastAccessed: NOW - ageHours * HOUR,
     isSource,
+  };
+}
+
+function visit(url: string, title: string, ageHours: number, visitCount = 1, typedCount = 0): HistoryItem {
+  return {
+    kind: "history",
+    id: `history:${url}`,
+    title,
+    url,
+    displayUrl: toDisplayUrl(url),
+    lastVisitTime: NOW - ageHours * HOUR,
+    visitCount,
+    typedCount,
   };
 }
 
@@ -43,9 +56,83 @@ describe("rank", () => {
     expect(ids(rank(items, "github", { now: NOW }))).toEqual(["tab:2", "tab:1"]);
   });
 
+  it("lists tabs, then recent history, then the source tab with an empty query", () => {
+    const items = [
+      visit("https://old.com", "Old", 50),
+      tab(1, "Source", "https://s.com", 0, true),
+      visit("https://new.com", "New", 1),
+      tab(2, "Other", "https://o.com", 2),
+    ];
+    expect(ids(rank(items, "", { now: NOW }))).toEqual(["tab:2", "history:https://new.com", "history:https://old.com", "tab:1"]);
+  });
+
+  describe("word starts beat matches inside words; tabs win within each", () => {
+    const amazon = visit("https://www.amazon.co.uk/", "Amazon.co.uk: Low Prices in Electronics, Books", 72);
+    const vivek = tab(1, "What Vivek Ramaswamy Doesn't Want You to Know - YouTube", "https://www.youtube.com/watch?v=x", 0);
+
+    it('"ama" finds Amazon in history before a tab with it inside "Ramaswamy"', () => {
+      expect(ids(rank([vivek, amazon], "ama", { now: NOW }))).toEqual(["history:https://www.amazon.co.uk/", "tab:1"]);
+    });
+
+    it('"rama" is a word start in "Vivek Ramaswamy", so the tab leads', () => {
+      const ramada = visit("https://ramada.com", "Ramada Hotels", 1, 50, 5);
+      expect(ids(rank([ramada, vivek], "rama", { now: NOW }))).toEqual(["tab:1", "history:https://ramada.com"]);
+    });
+
+    it("counts the start of a URL segment as a word start", () => {
+      const shop = visit("https://www.amazon.co.uk/gp/cart", "Shopping Basket", 72);
+      expect(ids(rank([vivek, shop], "ama", { now: NOW }))[0]).toBe("history:https://www.amazon.co.uk/gp/cart");
+    });
+
+    it("puts a tab above history when both match equally well", () => {
+      const items = [visit("https://a.com", "Rust book", 0, 500, 100), tab(2, "Rust docs", "https://b.com", 48)];
+      expect(ids(rank(items, "rust", { now: NOW }))).toEqual(["tab:2", "history:https://a.com"]);
+    });
+
+    it("ranks scattered letters below any word match", () => {
+      const items = [tab(1, "Yearly outlook update", "https://b.com", 0), visit("https://y.com", "Your stuff", 48)];
+      expect(ids(rank(items, "you", { now: NOW }))).toEqual(["history:https://y.com", "tab:1"]);
+    });
+
+    it("grades a multi-word query by its weakest word", () => {
+      // Both words start words in "Amazon Video"; the tab has "ama" inside a word and "vid" scattered.
+      const items = [vivek, visit("https://amazon.com/video", "Amazon Video", 72)];
+      expect(ids(rank(items, "ama vid", { now: NOW }))).toEqual(["history:https://amazon.com/video", "tab:1"]);
+      expect(ids(rank(items, "vivek ama", { now: NOW }))).toEqual(["tab:1"]);
+    });
+  });
+
+  it("still puts the source tab below history", () => {
+    const items = [tab(1, "YouTube", "https://youtube.com", 0, true), visit("https://y.com", "Your stuff", 48)];
+    expect(ids(rank(items, "you", { now: NOW }))).toEqual(["history:https://y.com", "tab:1"]);
+  });
+
+  it("prefers history visited often or typed by hand", () => {
+    const items = [
+      visit("https://once.com/news", "News", 1, 1, 0),
+      visit("https://often.com/news", "News", 1, 40, 0),
+      visit("https://typed.com/news", "News", 1, 40, 10),
+    ];
+    expect(ids(rank(items, "news", { now: NOW }))).toEqual([
+      "history:https://typed.com/news",
+      "history:https://often.com/news",
+      "history:https://once.com/news",
+    ]);
+  });
+
   it("caps results", () => {
     const items = Array.from({ length: 30 }, (_, i) => tab(i, `Tab ${i}`, `https://t${i}.com`, i));
     expect(rank(items, "tab", { now: NOW, limit: 10 })).toHaveLength(10);
+  });
+});
+
+describe("url helpers", () => {
+  it("allows only pages the palette should open", () => {
+    expect(isOpenable("https://example.com")).toBe(true);
+    expect(isOpenable("chrome://settings")).toBe(true);
+    expect(isOpenable("javascript:alert(1)")).toBe(false);
+    expect(isOpenable("data:text/html,hi")).toBe(false);
+    expect(isOpenable("not a url")).toBe(false);
   });
 });
 

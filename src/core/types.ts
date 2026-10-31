@@ -19,8 +19,21 @@ export interface TabItem extends BaseItem {
   isSource: boolean;
 }
 
-/** Union of every item kind; history, search and extension items join in later steps. */
-export type PaletteItem = TabItem;
+export interface HistoryItem extends BaseItem {
+  kind: "history";
+  /** Epoch ms of the most recent visit. */
+  lastVisitTime: number;
+  visitCount: number;
+  /** Visits where the URL was typed into the address bar: a strong signal of intent. */
+  typedCount: number;
+}
+
+/** Union of every item kind; search and extension items join in later steps. */
+export type PaletteItem = TabItem | HistoryItem;
+
+/** Where palette items come from. Each is loaded separately so fast ones show first. */
+export const SOURCES = ["tabs", "history"] as const;
+export type SourceName = (typeof SOURCES)[number];
 
 export interface ScoredItem {
   item: PaletteItem;

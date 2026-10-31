@@ -1,5 +1,7 @@
 import { test as base, chromium, type BrowserContext, type Page, type Worker } from "@playwright/test";
 import { mkdtemp, rm } from "node:fs/promises";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,24 +12,36 @@ const dist = fileURLToPath(new URL("../../dist-e2e", import.meta.url));
 /** Helium by default; set BROWSER to test another Chromium build. */
 const executablePath = process.env.BROWSER ?? "/Applications/Helium.app/Contents/MacOS/Helium";
 
-export const test = base.extend<{ context: BrowserContext; worker: Worker; extensionId: string }>({
+let origin = "";
+
+type Fixtures = { context: BrowserContext; worker: Worker; extensionId: string };
+
+export const test = base.extend<Fixtures, { server: void }>({
+  // Serves test pages from 127.0.0.1, so nothing goes to the network. A real
+  // server rather than Playwright's request interception, which sometimes
+  // drops navigations the extension starts with chrome.tabs.update.
+  server: [
+    async ({}, use) => {
+      const server = createServer((req, res) => {
+        const url = new URL(req.url ?? "/", "http://localhost");
+        const title = decodeURIComponent(url.pathname.slice(1)) || "Test page";
+        const csp = url.searchParams.get("csp");
+        res.writeHead(200, { "Content-Type": "text/html", ...(csp ? { "Content-Security-Policy": csp } : {}) });
+        res.end(`<title>${title}</title><h1>${title}</h1><input id="page-input" autofocus>`);
+      });
+      await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+      origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+      await use();
+      server.close();
+    },
+    { scope: "worker", auto: true },
+  ],
   context: async ({}, use) => {
     const profile = await mkdtemp(join(tmpdir(), "palette-e2e-"));
     const context = await chromium.launchPersistentContext(profile, {
       executablePath,
       headless: true,
       args: [`--disable-extensions-except=${dist}`, `--load-extension=${dist}`],
-    });
-    // Serve test pages locally; nothing goes to the network.
-    await context.route(`${TEST_ORIGIN}/**`, (route) => {
-      const url = new URL(route.request().url());
-      const title = decodeURIComponent(url.pathname.slice(1)) || "Test page";
-      const csp = url.searchParams.get("csp");
-      return route.fulfill({
-        contentType: "text/html",
-        headers: csp ? { "Content-Security-Policy": csp } : {},
-        body: `<title>${title}</title><h1>${title}</h1><input id="page-input" autofocus>`,
-      });
     });
     await use(context);
     await context.close();
@@ -43,11 +57,9 @@ export const test = base.extend<{ context: BrowserContext; worker: Worker; exten
 
 export const expect = test.expect;
 
-const TEST_ORIGIN = "https://palette.test";
-
-/** A real https page served by the route above; content scripts can be injected into it. */
-export const httpsUrl = (title: string, { csp }: { csp?: string } = {}) => {
-  const url = new URL(`${TEST_ORIGIN}/${encodeURIComponent(title)}`);
+/** A real web page served by the local test server; content scripts can be injected into it. */
+export const webUrl = (title: string, { csp }: { csp?: string } = {}) => {
+  const url = new URL(`${origin}/${encodeURIComponent(title)}`);
   if (csp) url.searchParams.set("csp", csp);
   return url.href;
 };
@@ -55,7 +67,7 @@ export const httpsUrl = (title: string, { csp }: { csp?: string } = {}) => {
 /** Does what pressing the shortcut does, for the tab showing `page`. */
 export async function pressShortcut(worker: Worker, page: Page): Promise<void> {
   await worker.evaluate(async (url) => {
-    const [tab] = await chrome.tabs.query({ url });
+    const tab = (await chrome.tabs.query({})).find((t) => t.url === url);
     // Exposed only in the --e2e build.
     await (globalThis as unknown as { __test: { togglePalette(t?: chrome.tabs.Tab): Promise<void> } }).__test.togglePalette(tab);
   }, page.url());
@@ -68,4 +80,9 @@ export const pageUrl = (title: string) =>
 /** Press a key that should close the page. The press itself may fail because the page is already gone. */
 export async function pressAndClose(page: Page, key: string): Promise<void> {
   await Promise.all([page.waitForEvent("close"), page.keyboard.press(key).catch(() => {})]);
+}
+
+/** Whether the tab showing `url` is its window's active tab. */
+export async function isActive(worker: Worker, url: string): Promise<boolean> {
+  return worker.evaluate(async (u) => (await chrome.tabs.query({})).find((t) => t.url === u)?.active ?? false, url);
 }

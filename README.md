@@ -2,7 +2,7 @@
 
 An Arc-style, keyboard-driven command palette for [Helium](https://helium.computer) (also works in Chrome). Manifest V3, plain TypeScript, no network requests.
 
-> **Status:** step 2 of 6. ⌘K opens the palette over the current page and switches between open tabs. History, search and extension mode are coming; see [PLAN.md](PLAN.md).
+> **Status:** step 3 of 6. ⌘K opens the palette over the current page and searches open tabs and history. The search row and extension mode are coming; see [PLAN.md](PLAN.md).
 
 ## Build
 
@@ -37,8 +37,12 @@ The default is **⌘K** on macOS and **Ctrl+K** elsewhere. Press it again to clo
 ## Using it
 
 - Type to filter. Words can match the title or the URL, in any order (`pr github`).
-- ↑/↓ or Ctrl+N/Ctrl+P to move, Enter to switch to the tab, Esc to close. Clicking outside the palette also closes it.
-- With nothing typed, tabs are listed most recently used first. The tab you opened the palette from is always last.
+- ↑/↓ or Ctrl+N/Ctrl+P to move, Esc to close. Clicking outside the palette also closes it.
+- **Enter** switches to a tab, or opens a history page in a new tab next to the current one. **⌘Enter** (Ctrl+Enter elsewhere) opens a history page in the current tab instead. From an empty new tab, Enter reuses that tab.
+- Results come from open tabs and your 2,000 most recent history pages. Each page appears once: if it's open it shows only as its tab, and repeat visits collapse into one history entry. Two URLs count as the same page when they differ only in the `#fragment`, tracking parameters (`utm_*`, `fbclid`, `gclid`, `ref` and similar), `www.`, a trailing slash, or site-specific tracking (YouTube timestamps, Amazon's click tracking). They also count as the same when they share a site, path and page title, which catches tracking parameters nobody has listed. Other query strings still count, so different YouTube videos or Google searches stay separate.
+- Results are ordered first by where your text matches: the start of a word (in the title, or a URL segment like `amazon` in `amazon.co.uk`) beats a match inside a word, which beats letters scattered through the title. Within each of those, open tabs come before history. So `ama` finds Amazon before a tab titled "Vivek Ramaswamy", but `rama` puts that tab first.
+- After that, more recently used items rank higher; for history, so do pages you visit often or typed into the address bar.
+- With nothing typed: open tabs, most recently used first, then recent history shown dimmed. The tab you opened the palette from is always last. Once you type, matching history is shown at full strength.
 
 ## Where it appears
 
@@ -57,6 +61,7 @@ Browsers don't let extensions draw on some pages: `chrome://` pages, other exten
 | Permission | Why |
 |---|---|
 | `tabs` | Read the titles and URLs of open tabs, and switch to one. |
+| `history` | Search your browsing history. It's read locally when the palette opens and never leaves the browser. |
 | `favicon` | Show each row's icon from the browser's local favicon cache, without fetching it from the site. |
 | `activeTab` | When you press the shortcut, lets the extension add the overlay to *that* tab only. No access to any page until you press it. |
 | `scripting` | Adds the overlay to the page (used together with `activeTab`). |

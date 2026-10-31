@@ -74,6 +74,25 @@
   background: var(--selected);
 }
 
+.row.dim .title {
+  color: var(--muted);
+}
+
+.row.dim .url,
+.row.dim .icon,
+.row.dim .badge {
+  opacity: 0.6;
+}
+
+/* Full strength again once you move onto it. */
+.row.dim[aria-selected="true"] .title {
+  color: var(--fg);
+}
+
+.row.dim[aria-selected="true"] :is(.url, .icon, .badge) {
+  opacity: 1;
+}
+
 .icon {
   flex: none;
   width: 16px;

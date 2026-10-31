@@ -1,25 +1,25 @@
 import type { Request, Response } from "../core/messages";
-import type { PaletteItem } from "../core/types";
+import type { SourceName } from "../core/types";
 import { execute } from "./actions";
 import { togglePalette } from "./launcher";
+import { historyProvider } from "./providers/history";
 import { tabsProvider } from "./providers/tabs";
-import type { Provider, ProviderContext } from "./providers/types";
+import type { Provider } from "./providers/types";
 
 const PALETTE_COMMAND = "toggle-palette";
-const providers: Provider[] = [tabsProvider];
-
-async function snapshot(ctx: ProviderContext): Promise<PaletteItem[]> {
-  const lists = await Promise.all(providers.map((p) => p.getItems(ctx)));
-  return lists.flat();
-}
+const providers: Record<SourceName, Provider> = {
+  tabs: tabsProvider,
+  history: historyProvider,
+};
 
 async function handleRequest(req: Request, sender: chrome.runtime.MessageSender): Promise<unknown> {
+  // The overlay doesn't know its tab id, but the sender does.
+  const sourceTabId = req.sourceTabId ?? sender.tab?.id;
   switch (req.type) {
-    case "snapshot":
-      // The overlay doesn't know its tab id, but the sender does.
-      return snapshot({ sourceTabId: req.sourceTabId ?? sender.tab?.id });
+    case "items":
+      return providers[req.source].getItems({ sourceTabId });
     case "execute":
-      await execute(req.item, req.newTab);
+      await execute(req.item, req.alternate, sourceTabId);
       return null;
   }
 }

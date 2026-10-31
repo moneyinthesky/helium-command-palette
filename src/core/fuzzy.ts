@@ -1,5 +1,17 @@
+/** Where a match lands, best last. Ranking compares this before anything else. */
+export const Quality = {
+  /** Letters spread out: "gthb" → GitHub. */
+  Scattered: 0,
+  /** Inside a word: "ama" → Ramaswamy. */
+  InsideWord: 1,
+  /** At the start of a word or URL segment: "rama" → Vivek Ramaswamy, "ama" → amazon.co.uk. */
+  WordStart: 2,
+} as const;
+export type Quality = (typeof Quality)[keyof typeof Quality];
+
 export interface Match {
   score: number;
+  quality: Quality;
   indices: number[];
 }
 
@@ -28,8 +40,9 @@ export function matchSubstring(token: string, text: string): Match | null {
     if (best === -1) best = i;
   }
   if (best === -1) return null;
-  const score = best === 0 ? 100 : isBoundary(lower, best) ? 80 : 50;
-  return { score, indices: range(best, token.length) };
+  const atWordStart = isBoundary(lower, best);
+  const score = best === 0 ? 100 : atWordStart ? 80 : 50;
+  return { score, quality: atWordStart ? Quality.WordStart : Quality.InsideWord, indices: range(best, token.length) };
 }
 
 /**
@@ -51,7 +64,7 @@ export function matchSubsequence(token: string, text: string): Match | null {
     from = i + 1;
   }
   const gaps = indices[indices.length - 1]! - indices[0]! + 1 - token.length;
-  return { score: Math.max(1, score - gaps * 0.5), indices };
+  return { score: Math.max(1, score - gaps * 0.5), quality: Quality.Scattered, indices };
 }
 
 export function tokenize(query: string): string[] {
@@ -60,17 +73,21 @@ export function tokenize(query: string): string[] {
 
 export interface FieldMatch {
   score: number;
+  /** The weakest token's quality: "ama zon" is only as good as its worst word. */
+  quality: Quality;
   titleMatches: number[];
   urlMatches: number[];
 }
 
 /**
  * Every token must match the title or the URL, in any order ("pr github").
- * URL matches count for less than title matches; fuzzy matching only applies
- * to titles, since subsequences of URLs are mostly noise.
+ * For each token the best-quality match wins; URL matches count for less than
+ * title matches of the same quality. Fuzzy matching only applies to titles,
+ * since subsequences of URLs are mostly noise.
  */
 export function matchFields(tokens: string[], title: string, url: string): FieldMatch | null {
   let score = 0;
+  let quality: Quality = Quality.WordStart;
   const titleMatches = new Set<number>();
   const urlMatches = new Set<number>();
 
@@ -86,14 +103,20 @@ export function matchFields(tokens: string[], title: string, url: string): Field
     ];
     let best: [Match, Set<number>, number] | null = null;
     for (const [m, set, weight] of candidates) {
-      if (m && (!best || m.score * weight > best[0].score * best[2])) best = [m, set, weight];
+      if (!m) continue;
+      const better =
+        !best ||
+        m.quality > best[0].quality ||
+        (m.quality === best[0].quality && m.score * weight > best[0].score * best[2]);
+      if (better) best = [m, set, weight];
     }
     if (!best) return null;
 
     score += best[0].score * best[2];
+    quality = Math.min(quality, best[0].quality) as Quality;
     for (const i of best[0].indices) best[1].add(i);
   }
 
   const sort = (s: Set<number>) => [...s].sort((a, b) => a - b);
-  return { score, titleMatches: sort(titleMatches), urlMatches: sort(urlMatches) };
+  return { score, quality, titleMatches: sort(titleMatches), urlMatches: sort(urlMatches) };
 }

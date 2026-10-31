@@ -28,7 +28,11 @@ const shared = {
   bundle: true,
   target: "chrome121",
   loader: { ".css": "text" },
-  define: { __E2E__: String(e2e) },
+  define: {
+    __E2E__: String(e2e),
+    // Lets an injected overlay tell it was built after one already on the page.
+    __BUILD_ID__: JSON.stringify(Date.now().toString(36)),
+  },
   sourcemap: watch ? "inline" : false,
   minify: !watch,
   logLevel: "info",

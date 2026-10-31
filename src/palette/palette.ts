@@ -1,16 +1,20 @@
+import { mergeItems } from "../core/merge";
 import { rank } from "../core/rank";
 import type { PaletteItem, ScoredItem } from "../core/types";
 import css from "./palette.css";
 
 /** What a surface (popup window, page overlay) provides to the palette. */
 export interface PaletteHost {
-  loadItems(): Promise<PaletteItem[]>;
-  execute(item: PaletteItem, opts: { newTab: boolean }): Promise<void>;
+  /** One promise per source; each source's items show up as soon as they arrive. */
+  loadSources(): Promise<PaletteItem[]>[];
+  /** `alternate`: ⌘ (Ctrl elsewhere) was held, asking for the item's secondary action. */
+  execute(item: PaletteItem, opts: { alternate: boolean }): Promise<void>;
   close(): void;
 }
 
 const KIND_LABEL: Record<PaletteItem["kind"], string> = {
   tab: "Tab",
+  history: "History",
 };
 
 export function faviconUrl(pageUrl: string): string {
@@ -71,6 +75,7 @@ function highlighted(text: string, matches: number[]): DocumentFragment {
 
 /** The palette panel: input plus result list. Each surface mounts it into an element inside a shadow root. */
 export class Palette {
+  private lists: PaletteItem[][] = [];
   private items: PaletteItem[] = [];
   private results: ScoredItem[] = [];
   private selected = 0;
@@ -93,7 +98,7 @@ export class Palette {
     panel.setAttribute("aria-label", "Command palette");
 
     this.input.type = "text";
-    this.input.placeholder = "Search tabs…";
+    this.input.placeholder = "Search tabs and history…";
     this.input.spellcheck = false;
     this.input.autocomplete = "off";
     this.input.setAttribute("role", "combobox");
@@ -106,33 +111,38 @@ export class Palette {
     panel.append(this.input, this.list, this.empty);
     this.container.append(panel);
 
-    this.input.addEventListener("input", () => this.update());
+    this.input.addEventListener("input", () => this.update(false));
     this.input.addEventListener("keydown", (e) => this.onKeyDown(e));
     this.focus();
 
-    this.host.loadItems().then(
-      (items) => {
-        this.items = items;
-        this.update();
-      },
-      (err: unknown) => console.error("[palette] failed to load items", err),
-    );
+    for (const [i, source] of this.host.loadSources().entries()) {
+      source.then(
+        (items) => {
+          this.lists[i] = items;
+          this.items = mergeItems(this.lists.filter(Boolean));
+          // Don't yank the highlight away from a row the user has moved to.
+          this.update(this.selected !== 0);
+        },
+        (err: unknown) => console.error("[palette] failed to load items", err),
+      );
+    }
   }
 
   focus(): void {
     this.input.focus();
   }
 
-  private update(): void {
+  private update(keepSelection: boolean): void {
+    const selectedId = keepSelection ? this.results[this.selected]?.item.id : undefined;
     this.results = rank(this.items, this.input.value);
-    this.selected = 0;
+    this.selected = Math.max(0, this.results.findIndex((r) => r.item.id === selectedId));
     this.render();
   }
 
   private render(): void {
     this.list.replaceChildren(...this.results.map((r, i) => this.renderRow(r, i)));
     this.empty.hidden = this.results.length > 0;
-    this.empty.textContent = this.items.length === 0 ? "" : "No matching tabs";
+    this.empty.textContent = this.items.length === 0 ? "" : "No matches";
     this.syncSelection();
   }
 
@@ -140,10 +150,13 @@ export class Palette {
     const { item } = result;
     const row = el("li", "row");
     row.id = `row-${index}`;
+    // With nothing typed, history is just filler under the tabs: show it quieter.
+    if (item.kind === "history" && this.input.value.trim() === "") row.classList.add("dim");
     row.setAttribute("role", "option");
 
     const icon = el("img", "icon");
     icon.alt = "";
+    icon.addEventListener("error", () => (icon.style.visibility = "hidden"), { once: true });
     icon.src = faviconUrl(item.url);
 
     const text = el("div", "text");
@@ -204,12 +217,12 @@ export class Palette {
     e.preventDefault();
   }
 
-  private async run(index: number, newTab: boolean): Promise<void> {
+  private async run(index: number, alternate: boolean): Promise<void> {
     const result = this.results[index];
     if (!result || this.busy) return;
     this.busy = true;
     try {
-      await this.host.execute(result.item, { newTab });
+      await this.host.execute(result.item, { alternate });
     } catch (err) {
       console.error("[palette] action failed", err);
     } finally {
