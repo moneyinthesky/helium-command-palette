@@ -122,3 +122,7 @@ pnpm check:shortcut  # does the browser assign the shortcut to a fresh install?
 | `src/overlay/` | The in-page overlay (injected content script) |
 | `src/popup/` | The separate-window fallback |
 | `tests/unit/`, `tests/e2e/` | Vitest and Playwright tests |
+
+## Licence
+
+[MIT](LICENSE)
