@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "Command Palette",
+  "version": "0.1.0",
+  "description": "A fast, keyboard-driven command palette for tabs, history, search and extensions.",
+  "minimum_chrome_version": "120",
+  "background": {
+    "service_worker": "service-worker.js",
+    "type": "module"
+  },
+  "commands": {
+    "toggle-palette": {
+      "suggested_key": {
+        "default": "Ctrl+K",
+        "mac": "Command+K"
+      },
+      "description": "Open the command palette"
+    }
+  }
+}
