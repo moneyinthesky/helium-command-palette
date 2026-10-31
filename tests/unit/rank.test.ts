@@ -170,6 +170,31 @@ describe("rank", () => {
     });
   });
 
+  describe("pinned tabs", () => {
+    const pinned = (t: TabItem): TabItem => ({ ...t, pinned: true });
+
+    it("beat a more recent tab that matches as well", () => {
+      const items = [tab(1, "Mail tips", "https://a.com", 0), pinned(tab(2, "Mail", "https://b.com", 48))];
+      expect(ids(rank(items, "mail", { now: NOW }))).toEqual(["tab:2", "tab:1"]);
+    });
+
+    it("beat a slightly better match: Gmail by its address over a title starting with the word", () => {
+      const gmail = pinned(tab(1, "Inbox (3)", "https://mail.google.com/mail/u/0", 24));
+      const items = [tab(2, "Mail merge tips", "https://a.com", 0), gmail];
+      expect(ids(rank(items, "mail", { now: NOW }))).toEqual(["tab:1", "tab:2"]);
+    });
+
+    it("lose to a match of better quality", () => {
+      const items = [pinned(tab(1, "Gmail", "https://x.com", 0)), tab(2, "Mail tips", "https://a.com", 48)];
+      expect(ids(rank(items, "mail", { now: NOW }))).toEqual(["tab:2", "tab:1"]);
+    });
+
+    it("keep their place by recency with nothing typed", () => {
+      const items = [pinned(tab(1, "Mail", "https://b.com", 48)), tab(2, "Other", "https://a.com", 0)];
+      expect(ids(rank(items, "", { now: NOW }))).toEqual(["tab:2", "tab:1"]);
+    });
+  });
+
   it("finds tabs by their group's title", () => {
     const grouped: TabItem = { ...tab(1, "Lasagne", "https://food.com/lasagne", 1), group: { title: "Recipes", color: "green" } };
     const items = [grouped, tab(2, "Other", "https://x.com", 0)];

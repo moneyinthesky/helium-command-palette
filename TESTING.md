@@ -38,7 +38,8 @@
 - [ ] With nothing typed: tabs from both windows, most recently used first. The tab you're on is last.
 - [ ] Enter on a tab in the other window brings that window to the front on that tab, and the palette closes.
 - [ ] Clicking a row does the same.
-- [ ] A pinned tab shows a pin after its title. A tab playing sound shows a speaker, and a muted one a crossed-out speaker. Both stay visible when the title is too long to fit.
+- [ ] A pinned tab's badge says **Pinned**, in the same colour as other tabs. With nothing typed, it keeps its place by recency; when you type, it comes before other tabs that match about as well.
+- [ ] A tab playing sound shows a speaker, and a muted one a crossed-out speaker. Both stay visible when the title is too long to fit.
 - [ ] A tab in a named group shows the group's colour and name before its URL, in the same colour as the tab strip, in light and dark mode. A tab in an unnamed group shows just the colour.
 - [ ] Typing a group's name lists the tabs in that group.
 - [ ] Tabs in the other window say "Other window"; tabs in this one don't.
@@ -68,6 +69,8 @@
 - [ ] Enter searches with Helium's default engine (Settings → Search engine) in a new tab next to the current one.
 - [ ] ⌘Enter searches in the current tab.
 - [ ] When a tab or history page matches at the start of a word, the search row moves to the bottom.
+- [ ] With a tab or history row highlighted, ⇧Enter searches for what you typed in a new tab, and ⇧⌘Enter in the current tab. The footer shows "⇧↵ Search the web".
+- [ ] Typing `?` alone shows "Type what to search the web for". `?github.com` shows only the search row, and Enter searches instead of opening the site.
 
 ## Addresses
 

@@ -1,5 +1,5 @@
 import type { Worker } from "@playwright/test";
-import { expect, pressShortcut, test, webUrl } from "./fixtures";
+import { expect, isActive, pressShortcut, test, webUrl } from "./fixtures";
 
 const OVERLAY = "#helium-command-palette";
 
@@ -59,5 +59,45 @@ test.describe("web search", () => {
     // showing the start page again, so wait for the tab to settle.
     await expect.poll(() => tabUrls(worker)).not.toContain(webUrl("Start page"));
     expect(await tabUrls(worker)).toHaveLength(tabsBefore);
+  });
+
+  test("searches from any row with Shift+Enter", async ({ context, worker }) => {
+    await (await context.newPage()).goto(webUrl("Zxqv docs"));
+    const page = await context.newPage();
+    const startUrl = webUrl("Start page");
+    await page.goto(startUrl);
+
+    await pressShortcut(worker, page);
+    const overlay = page.locator(OVERLAY);
+    await expect(overlay.locator(".input")).toBeFocused();
+    await expect(overlay.locator(".hints")).not.toContainText("Search the web");
+    await page.keyboard.type("zxqv");
+    await expect(overlay.locator('.row[aria-selected="true"] .badge')).toHaveText("Tab");
+    await expect(overlay.locator(".hints")).toContainText("⇧↵ Search the web");
+
+    await page.keyboard.press("Shift+Enter");
+    await expect.poll(async () => (await tabUrls(worker)).some((u) => /=zxqv(&|$)/.test(u))).toBe(true);
+    expect(page.url()).toBe(startUrl);
+    // The tab wasn't switched to.
+    await expect.poll(() => isActive(worker, webUrl("Zxqv docs"))).toBe(false);
+  });
+
+  test("searches only with a ? in front", async ({ context, worker }) => {
+    await (await context.newPage()).goto(webUrl("Zxqv docs"));
+    const page = await context.newPage();
+    await page.goto(webUrl("Start page"));
+
+    await pressShortcut(worker, page);
+    const overlay = page.locator(OVERLAY);
+    await expect(overlay.locator(".input")).toBeFocused();
+    await page.keyboard.type("?");
+    await expect(overlay.locator(".row")).toHaveCount(0);
+    await expect(overlay.locator(".empty")).toHaveText("Type what to search the web for");
+    await page.keyboard.type("zxqv docs");
+    await expect(overlay.locator(".row .badge")).toHaveText(["Search"]);
+    await expect(overlay.locator(".row .title")).toHaveText("Search the web for “zxqv docs”");
+
+    await page.keyboard.press("Enter");
+    await expect.poll(async () => (await tabUrls(worker)).some((u) => /zxqv(\+|%20)docs/.test(u))).toBe(true);
   });
 });

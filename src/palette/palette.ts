@@ -1,6 +1,6 @@
 import { mergeItems } from "../core/merge";
 import { rank } from "../core/rank";
-import { withQueryRows } from "../core/search";
+import { forcedSearch, searchItem, withQueryRows } from "../core/search";
 import type { PaletteItem, ScoredItem, SourceItem, TabItem } from "../core/types";
 import css from "./palette.css";
 
@@ -86,9 +86,8 @@ const globeIcon = () =>
 
 const SPEAKER = "M2.5 6H5l3-2.5v9L5 10H2.5z";
 
-/** Small icons after a tab's title, labelled for screen readers. */
+/** Small icons after a tab's title, labelled for screen readers. Pinned tabs say so on their badge instead. */
 const STATE_ICONS = {
-  pinned: [["path", { d: "M5.5 2.5h5M6.5 2.5V6l-2 2.5h7l-2-2.5V2.5M8 8.5V14" }]],
   audible: [
     ["path", { d: SPEAKER }],
     ["path", { d: "M10.5 5.5a3.5 3.5 0 0 1 0 5M12.5 3.5a6.4 6.4 0 0 1 0 9" }],
@@ -100,14 +99,12 @@ const STATE_ICONS = {
 } satisfies Record<string, [string, Record<string, string>][]>;
 
 const STATE_LABEL: Record<keyof typeof STATE_ICONS, string> = {
-  pinned: "Pinned",
   audible: "Playing sound",
   muted: "Muted",
 };
 
 function stateIcons(tab: TabItem): SVGSVGElement[] {
   const states: (keyof typeof STATE_ICONS)[] = [];
-  if (tab.pinned) states.push("pinned");
   // A muted tab can still be "audible": it would be playing if it weren't muted.
   if (tab.muted) states.push("muted");
   else if (tab.audible) states.push("audible");
@@ -257,7 +254,8 @@ export class Palette {
     this.list.replaceChildren(...this.results.map((r, i) => this.renderRow(r, i)));
     this.empty.hidden = this.results.length > 0;
     // With nothing typed only tabs show, and those may not have loaded yet.
-    this.empty.textContent = this.input.value.trim() ? "No matches" : "";
+    this.empty.textContent =
+      forcedSearch(this.input.value) === "" ? "Type what to search the web for" : this.input.value.trim() ? "No matches" : "";
     this.syncSelection();
   }
 
@@ -297,7 +295,8 @@ export class Palette {
     text.append(line, url);
 
     const badge = el("span", "badge");
-    badge.textContent = KIND_LABEL[item.kind];
+    // Still a tab, so still the tab colour; the label sets it apart.
+    badge.textContent = item.kind === "tab" && item.pinned ? "Pinned" : KIND_LABEL[item.kind];
 
     row.append(icon, text);
     if (item.kind === "tab" && item.otherWindow) {
@@ -313,7 +312,7 @@ export class Palette {
       }
     });
     row.addEventListener("mousedown", (e) => e.preventDefault()); // keep focus in the input
-    row.addEventListener("click", (e) => void this.run(index, e.metaKey || e.ctrlKey));
+    row.addEventListener("click", (e) => void this.run(this.results[index]?.item, e.metaKey || e.ctrlKey));
     return row;
   }
 
@@ -344,7 +343,10 @@ export class Palette {
 
   private renderHints(): void {
     const kind = this.results[this.selected]?.item.kind;
-    const hints: [string, string][] = [...(kind ? HINTS[kind] : []), ["esc", "Close"]];
+    const hints: [string, string][] = [...(kind ? HINTS[kind] : [])];
+    // A way to search without going down to the search row.
+    if (kind && kind !== "search" && this.typedSearch()) hints.push(["⇧↵", "Search the web"]);
+    hints.push(["esc", "Close"]);
     this.hints.replaceChildren(
       ...hints.map(([key, action]) => {
         const hint = el("span", "hint");
@@ -369,8 +371,10 @@ export class Palette {
       this.move(1);
     } else if (e.key === "ArrowUp" || (ctrlOnly && e.key === "p")) {
       this.move(-1);
+    } else if (e.key === "Enter" && e.shiftKey && !e.isComposing) {
+      void this.run(this.typedSearch(), e.metaKey || e.ctrlKey);
     } else if (e.key === "Enter" && !e.isComposing) {
-      void this.run(this.selected, e.metaKey || e.ctrlKey);
+      void this.run(this.results[this.selected]?.item, e.metaKey || e.ctrlKey);
     } else if (e.key === "Backspace" && (e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && this.highlightedTab()) {
       // Only on a tab row: elsewhere the key edits the text as usual.
       this.closeTab(this.highlightedTab()!);
@@ -399,12 +403,17 @@ export class Palette {
     this.host.closeTab(tab.tabId).catch((err: unknown) => console.error("[palette] failed to close tab", err));
   }
 
-  private async run(index: number, alternate: boolean): Promise<void> {
-    const result = this.results[index];
-    if (!result || this.busy) return;
+  /** A web search for what was typed, whichever row is highlighted. */
+  private typedSearch(): PaletteItem | undefined {
+    const text = forcedSearch(this.input.value) ?? this.input.value.trim();
+    return text ? searchItem(text) : undefined;
+  }
+
+  private async run(item: PaletteItem | undefined, alternate: boolean): Promise<void> {
+    if (!item || this.busy) return;
     this.busy = true;
     try {
-      await this.host.execute(result.item, { alternate });
+      await this.host.execute(item, { alternate });
     } catch (err) {
       console.error("[palette] action failed", err);
     } finally {

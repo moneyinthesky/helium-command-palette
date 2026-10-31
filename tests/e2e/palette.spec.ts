@@ -131,7 +131,8 @@ test.describe("palette (popup page)", () => {
     await palette.goto(`chrome-extension://${extensionId}/palette.html?sourceTabId=${alphaId}`);
     const row = (title: string) => palette.locator(".row").filter({ has: palette.locator(".title", { hasText: title }) });
 
-    await expect(row("Pinned page").locator('[aria-label="Pinned"]')).toHaveCount(1);
+    await expect(row("Pinned page").locator(".badge")).toHaveText("Pinned");
+    await expect(row("Alpha page").locator(".badge")).toHaveText("Tab");
     await expect(row("Muted page").locator('[aria-label="Muted"]')).toHaveCount(1);
     await expect(row("Alpha page").locator(".state")).toHaveCount(0);
     await expect(row("Grouped page").locator(".group")).toHaveText("Research");

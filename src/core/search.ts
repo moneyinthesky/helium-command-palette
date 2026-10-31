@@ -14,6 +14,12 @@ export function searchItem(query: string): SearchItem {
   };
 }
 
+/** "?rust" always searches the web for "rust", as in Chrome's address bar. Null without the "?". */
+export function forcedSearch(query: string): string | null {
+  const text = query.trim();
+  return text.startsWith("?") ? text.slice(1).trim() : null;
+}
+
 /** The row that opens what was typed, shown as typed with the full URL under it. */
 export function urlItem(text: string, url: string): UrlItem {
   return { kind: "url", id: "url", title: text, url, displayUrl: url };
@@ -36,6 +42,7 @@ function matchesWell(best: ScoredItem | undefined): boolean {
  * Adds rows for the typed text itself, so Enter always does something. No
  * rows when nothing has been typed.
  *
+ * - With a "?" in front, the search row is the only row.
  * - "Search the web" goes first when nothing matches well (the best result
  *   doesn't match at a word start) and last otherwise.
  * - When the text looks like an address, a row that opens it goes first. A
@@ -44,6 +51,8 @@ function matchesWell(best: ScoredItem | undefined): boolean {
  *   takes the row's place, so an open tab is switched to, not opened again.
  */
 export function withQueryRows(results: ScoredItem[], query: string, limit = MAX_RESULTS): ScoredItem[] {
+  const forced = forcedSearch(query);
+  if (forced !== null) return forced ? [unscored(searchItem(forced))] : [];
   const text = query.trim();
   if (!text) return results;
   const search = unscored(searchItem(text));

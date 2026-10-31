@@ -30,6 +30,15 @@ function frecency(visitCount: number, typedCount: number, lastVisitTime: number,
   );
 }
 
+/**
+ * Extra for a pinned tab: you chose to keep it, so it's likely what you want.
+ * More than one step of match strength (20: a title over an address, or the
+ * title's first word over a later one) plus the most recency can add (15), so
+ * a pinned tab beats an equal or slightly better match however recently that
+ * was used. It never beats a match of better quality: those are grouped apart.
+ */
+const PINNED_BOOST = 35;
+
 /** Up to `max` for something used just now, halving after `halfLifeHours`. */
 function recency(time: number, now: number, max: number, halfLifeHours: number): number {
   const ageHours = Math.max(0, now - time) / HOUR;
@@ -40,7 +49,7 @@ function recency(time: number, now: number, max: number, halfLifeHours: number):
 function boost(item: SourceItem, now: number): number {
   switch (item.kind) {
     case "tab":
-      return recency(item.lastAccessed, now, 15, 6);
+      return recency(item.lastAccessed, now, 15, 6) + (item.pinned ? PINNED_BOOST : 0);
     case "bookmark":
       // A bookmark never visited counts from when it was made.
       return frecency(item.visitCount, item.typedCount, item.lastVisitTime || item.dateAdded, now);

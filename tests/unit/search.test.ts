@@ -97,3 +97,19 @@ describe("withQueryRows: address row", () => {
     expect(rows.at(-1)!.item.id).toBe("search");
   });
 });
+
+describe("withQueryRows: ? prefix", () => {
+  it("leaves only the search row, without the ?", () => {
+    const rows = withQueryRows([result(1, Quality.WordStart)], " ? rust lifetimes ");
+    expect(ids(rows)).toEqual(["search"]);
+    expect(rows[0]!.item).toMatchObject({ kind: "search", query: "rust lifetimes" });
+  });
+
+  it("searches for an address instead of opening it", () => {
+    expect(ids(withQueryRows([], "?github.com"))).toEqual(["search"]);
+  });
+
+  it("shows nothing until there's something after the ?", () => {
+    expect(withQueryRows([result(1, Quality.WordStart)], "? ")).toEqual([]);
+  });
+});

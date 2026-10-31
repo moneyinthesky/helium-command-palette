@@ -31,6 +31,7 @@ Press **⌘K** (Ctrl+K on Windows and Linux) on any page. Press it again, press 
 | ↑ ↓ or Ctrl+N / Ctrl+P | Move the highlight |
 | Enter | Switch to a tab, or open a bookmark, history page, address or web search in a new tab next to the current one |
 | ⌘Enter (Ctrl+Enter) | Open a bookmark, history page, address or web search in the current tab instead |
+| ⇧Enter | Search the web for what you typed, whichever row is highlighted. ⇧⌘Enter (Ctrl+⇧Enter) searches in the current tab. |
 | ⌘⌫ (Ctrl+⌫) | Close the highlighted tab. The palette stays open, so you can close several in a row. On other rows the key edits your text as usual. |
 | Esc | Close |
 
@@ -38,18 +39,18 @@ The footer shows what Enter and ⌘Enter will do for the highlighted row. From a
 
 ### What you can find
 
-- **Open tabs** in every window. Rows show a pin for pinned tabs, a speaker for tabs playing sound (crossed out when muted), the tab group's colour and name, and "Other window" for tabs that aren't in your current window. Typing a group's name finds every tab in it (`research`).
+- **Open tabs** in every window. Pinned tabs say **Pinned** on their badge. Rows show a speaker for tabs playing sound (crossed out when muted), the tab group's colour and name, and "Other window" for tabs that aren't in your current window. Typing a group's name finds every tab in it (`research`).
 - **Bookmarks**, by title, URL or the folders they're in (`recipes` finds everything in a Recipes folder). The folder path shows next to the URL. The top-level folders (bookmarks bar, Other bookmarks) are left out of it.
 - **History:** your 2,000 most recent pages.
 - **Addresses:** type something that looks like a URL (`github.com/anthropics`, `localhost:3000`, `https://…`, `chrome://extensions`) and a row opens it directly. `localhost`, `*.localhost` and IP addresses open over `http://`; other addresses without a scheme get `https://`. If a tab or bookmark is already that page, it takes the row's place, so Enter switches to the open tab instead of opening it again. Words ending in a file extension, like `node.js`, count as searches.
-- **Web search:** once you type, there's always a "Search the web" row, so Enter always does something. It uses Helium's default search engine (Settings → Search engine). Nothing is sent to the search engine until you choose that row: there are no live suggestions.
+- **Web search:** once you type, there's always a "Search the web" row, so Enter always does something. To search without going down to it, press ⇧Enter, or start with `?` (as in Chrome's address bar): `?rust lifetimes` shows only the search row. It uses Helium's default search engine (Settings → Search engine). Nothing is sent to the search engine until you choose that row: there are no live suggestions.
 
 With nothing typed you see only open tabs, most recently used first, with the tab you're on last. Bookmarks and history appear once you type.
 
 ### How results are ordered
 
 1. **Where your text matches.** The start of a word in the title, or a URL segment like `amazon` in `amazon.co.uk`, beats a match inside a word, which beats letters scattered through the title. So `ama` finds Amazon before a tab titled "Vivek Ramaswamy", but `rama` puts that tab first.
-2. **Open tabs, then bookmarks, then history**, among equally good matches.
+2. **Open tabs, then bookmarks, then history**, among equally good matches. Among tabs, pinned ones get a boost, enough to beat a slightly better match however recently it was used: `mail` puts your pinned Gmail (matched by its address) above an unpinned "Mail merge tips" tab you just looked at.
 3. **Recency**, and for bookmarks and history, how often you visit a page and whether you typed it into the address bar.
 
 The search row goes first when nothing matches at the start of a word, and last otherwise. An address row goes first when the text is clearly an address (it has a scheme, path, port, `localhost` or an IP address). A bare domain like `example.com` goes first only when nothing else matches at the start of a word, since it might be a search.
