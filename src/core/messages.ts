@@ -8,12 +8,14 @@ import type { Favicon, PaletteItem, SourceItem, SourceName } from "./types";
 export type Request =
   | { type: "items"; source: SourceName; sourceTabId?: number }
   | { type: "execute"; item: PaletteItem; alternate: boolean; sourceTabId?: number }
-  | { type: "favicons"; pageUrls: string[]; sourceTabId?: undefined };
+  | { type: "favicons"; pageUrls: string[]; sourceTabId?: undefined }
+  | { type: "closeTab"; tabId: number; sourceTabId?: undefined };
 
 export interface ResponseMap {
   items: SourceItem[];
   execute: null;
   favicons: Favicon[];
+  closeTab: null;
 }
 
 export type Response<T = unknown> = { ok: true; data: T } | { ok: false; error: string };

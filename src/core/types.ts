@@ -48,11 +48,16 @@ export interface SearchItem extends BaseItem {
   query: string;
 }
 
+/** The "open this address" row, for text that looks like a URL. Built from the query, like the search row. */
+export interface UrlItem extends BaseItem {
+  kind: "url";
+}
+
 /** Items loaded from a source and ranked against the query. */
 export type SourceItem = TabItem | BookmarkItem | HistoryItem;
 
 /** Every kind of row; extension items join in a later step. */
-export type PaletteItem = SourceItem | SearchItem;
+export type PaletteItem = SourceItem | SearchItem | UrlItem;
 
 /** Where palette items come from. Each is loaded separately so fast ones show first. */
 export const SOURCES = ["tabs", "bookmarks", "history"] as const;

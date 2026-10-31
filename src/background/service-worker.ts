@@ -26,6 +26,9 @@ async function handleRequest(req: Request, sender: chrome.runtime.MessageSender)
       return null;
     case "favicons":
       return getFavicons(req.pageUrls);
+    case "closeTab":
+      await chrome.tabs.remove(req.tabId);
+      return null;
   }
 }
 

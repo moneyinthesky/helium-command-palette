@@ -1,7 +1,7 @@
 import { mergeItems } from "../core/merge";
 import { rank } from "../core/rank";
-import { withSearchRow } from "../core/search";
-import type { PaletteItem, ScoredItem, SourceItem } from "../core/types";
+import { withQueryRows } from "../core/search";
+import type { PaletteItem, ScoredItem, SourceItem, TabItem } from "../core/types";
 import css from "./palette.css";
 
 /** What a surface (popup window, page overlay) provides to the palette. */
@@ -12,6 +12,7 @@ export interface PaletteHost {
   loadIcons(pageUrls: string[]): Promise<Map<string, ImageBitmap>>;
   /** `alternate`: ⌘ (Ctrl elsewhere) was held, asking for the item's secondary action. */
   execute(item: PaletteItem, opts: { alternate: boolean }): Promise<void>;
+  closeTab(tabId: number): Promise<void>;
   close(): void;
 }
 
@@ -23,13 +24,17 @@ const KIND_LABEL: Record<PaletteItem["kind"], string> = {
   bookmark: "Bookmark",
   history: "History",
   search: "Search",
+  url: "URL",
 };
 
 const MOD_KEY = /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl+";
 
 /** Footer hints for the highlighted row, so ⌘Enter is discoverable. */
 const HINTS: Record<PaletteItem["kind"], [key: string, action: string][]> = {
-  tab: [["↵", "Switch to tab"]],
+  tab: [
+    ["↵", "Switch to tab"],
+    [`${MOD_KEY}⌫`, "Close tab"],
+  ],
   bookmark: [
     ["↵", "Open in new tab"],
     [`${MOD_KEY}↵`, "Open here"],
@@ -42,25 +47,42 @@ const HINTS: Record<PaletteItem["kind"], [key: string, action: string][]> = {
     ["↵", "Search in new tab"],
     [`${MOD_KEY}↵`, "Search here"],
   ],
+  url: [
+    ["↵", "Open in new tab"],
+    [`${MOD_KEY}↵`, "Open here"],
+  ],
 };
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
-/** Magnifying glass for the search row, drawn in the text colour. */
-function searchIcon(): SVGSVGElement {
+/** A 16×16 line icon in the text colour, from shapes given as [tag, attributes]. */
+function glyph(shapes: [tag: string, attrs: Record<string, string>][]): SVGSVGElement {
   const svg = document.createElementNS(SVG_NS, "svg");
   svg.setAttribute("class", "icon glyph");
   svg.setAttribute("viewBox", "0 0 16 16");
   svg.setAttribute("aria-hidden", "true");
-  const circle = document.createElementNS(SVG_NS, "circle");
-  circle.setAttribute("cx", "7");
-  circle.setAttribute("cy", "7");
-  circle.setAttribute("r", "4.5");
-  const handle = document.createElementNS(SVG_NS, "path");
-  handle.setAttribute("d", "M10.5 10.5 14 14");
-  svg.append(circle, handle);
+  for (const [tag, attrs] of shapes) {
+    const shape = document.createElementNS(SVG_NS, tag);
+    for (const [name, value] of Object.entries(attrs)) shape.setAttribute(name, value);
+    svg.append(shape);
+  }
   return svg;
 }
+
+/** Magnifying glass for the search row. */
+const searchIcon = () =>
+  glyph([
+    ["circle", { cx: "7", cy: "7", r: "4.5" }],
+    ["path", { d: "M10.5 10.5 14 14" }],
+  ]);
+
+/** Globe for an address with no favicon in the browser's cache. */
+const globeIcon = () =>
+  glyph([
+    ["circle", { cx: "8", cy: "8", r: "6" }],
+    ["ellipse", { cx: "8", cy: "8", rx: "2.6", ry: "6" }],
+    ["path", { d: "M2 8h12" }],
+  ]);
 
 /**
  * Adds styles to a shadow root as a constructed stylesheet. Unlike a <style>
@@ -176,9 +198,13 @@ export class Palette {
 
   private update(keepSelection: boolean): void {
     const selectedId = keepSelection ? this.results[this.selected]?.item.id : undefined;
-    this.results = withSearchRow(rank(this.items, this.input.value), this.input.value);
+    this.rerank();
     this.selected = Math.max(0, this.results.findIndex((r) => r.item.id === selectedId));
     this.render();
+  }
+
+  private rerank(): void {
+    this.results = withQueryRows(rank(this.items, this.input.value), this.input.value);
   }
 
   /** Asks for every icon the current results need and haven't been asked for, in one request. */
@@ -206,7 +232,8 @@ export class Palette {
     row.dataset.kind = item.kind; // styled per kind: tint and badge colour
     row.setAttribute("role", "option");
 
-    const icon = item.kind === "search" ? searchIcon() : this.favicon(item.url);
+    const icon =
+      item.kind === "search" ? searchIcon() : this.favicon(item.url, item.kind === "url" ? globeIcon : undefined);
 
     const text = el("div", "text");
     const title = el("div", "title");
@@ -235,11 +262,13 @@ export class Palette {
     return row;
   }
 
-  private favicon(pageUrl: string): HTMLCanvasElement {
+  /** The page's favicon, or `fallback` in its place when the browser has none cached. */
+  private favicon(pageUrl: string, fallback?: () => Element): HTMLCanvasElement {
     const canvas = el("canvas", "icon");
     canvas.width = canvas.height = ICON_PIXELS;
     void this.icons.get(pageUrl)?.then((bitmap) => {
       if (bitmap) canvas.getContext("2d")?.drawImage(bitmap, 0, 0, ICON_PIXELS, ICON_PIXELS);
+      else if (fallback) canvas.replaceWith(fallback());
     });
     return canvas;
   }
@@ -287,12 +316,32 @@ export class Palette {
       this.move(-1);
     } else if (e.key === "Enter" && !e.isComposing) {
       void this.run(this.selected, e.metaKey || e.ctrlKey);
+    } else if (e.key === "Backspace" && (e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && this.highlightedTab()) {
+      // Only on a tab row: elsewhere the key edits the text as usual.
+      this.closeTab(this.highlightedTab()!);
     } else if (e.key === "Escape") {
       this.host.close();
     } else {
       return;
     }
     e.preventDefault();
+  }
+
+  private highlightedTab(): TabItem | undefined {
+    const item = this.results[this.selected]?.item;
+    return item?.kind === "tab" ? item : undefined;
+  }
+
+  /** Closes the tab and drops its row, keeping the palette open and the highlight in place. */
+  private closeTab(tab: TabItem): void {
+    const index = this.selected;
+    this.lists = this.lists.map((list) => list.filter((item) => item.id !== tab.id));
+    // A history entry or bookmark it was hiding comes back, since the page is no longer open.
+    this.items = mergeItems(this.lists.filter(Boolean));
+    this.rerank();
+    this.selected = Math.min(index, Math.max(0, this.results.length - 1));
+    this.render();
+    this.host.closeTab(tab.tabId).catch((err: unknown) => console.error("[palette] failed to close tab", err));
   }
 
   private async run(index: number, alternate: boolean): Promise<void> {

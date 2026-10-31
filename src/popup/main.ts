@@ -24,6 +24,9 @@ const palette = new Palette(container, {
   execute: async (item, { alternate }) => {
     await request({ type: "execute", item, alternate, sourceTabId });
   },
+  closeTab: async (tabId) => {
+    await request({ type: "closeTab", tabId });
+  },
   close: () => void close(),
 });
 palette.mount();

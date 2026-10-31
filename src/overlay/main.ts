@@ -90,10 +90,13 @@ function createOverlay(): Overlay {
     const palette = new Palette(frame, {
       loadSources: () => SOURCES.map((source) => request({ type: "items", source })),
       loadIcons,
-  execute: async (item, { alternate }) => {
+      execute: async (item, { alternate }) => {
         // Get out of the way first: the action may navigate this very page.
         close();
         await request({ type: "execute", item, alternate });
+      },
+      closeTab: async (tabId) => {
+        await request({ type: "closeTab", tabId });
       },
       close,
     });

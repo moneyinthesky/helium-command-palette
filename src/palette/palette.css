@@ -101,7 +101,9 @@
   --kind: var(--kind-history);
 }
 
-.row[data-kind="search"] {
+/* Both rows act on what you typed, so they share a colour. */
+.row[data-kind="search"],
+.row[data-kind="url"] {
   --kind: var(--kind-search);
 }
 

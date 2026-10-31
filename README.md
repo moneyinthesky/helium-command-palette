@@ -1,6 +1,6 @@
 # Command Palette for Helium
 
-An Arc-style, keyboard-driven command palette for [Helium](https://helium.computer). It also works in Chrome. Press **⌘K** and type to jump to an open tab, open a bookmark, reopen something from your history, or search the web.
+An Arc-style, keyboard-driven command palette for [Helium](https://helium.computer). It also works in Chrome. Press **⌘K** and type to jump to an open tab, open a bookmark, reopen something from your history, go to an address, or search the web.
 
 Manifest V3, plain TypeScript, no frameworks. It makes no network requests of its own and has no analytics.
 
@@ -29,8 +29,9 @@ Press **⌘K** (Ctrl+K on Windows and Linux) on any page. Press it again, press 
 |---|---|
 | Type | Filter. Words can match the title, the URL or a bookmark's folder, in any order (`pr github`). |
 | ↑ ↓ or Ctrl+N / Ctrl+P | Move the highlight |
-| Enter | Switch to a tab, or open a bookmark, history page or web search in a new tab next to the current one |
-| ⌘Enter (Ctrl+Enter) | Open a bookmark, history page or web search in the current tab instead |
+| Enter | Switch to a tab, or open a bookmark, history page, address or web search in a new tab next to the current one |
+| ⌘Enter (Ctrl+Enter) | Open a bookmark, history page, address or web search in the current tab instead |
+| ⌘⌫ (Ctrl+⌫) | Close the highlighted tab. The palette stays open, so you can close several in a row. On other rows the key edits your text as usual. |
 | Esc | Close |
 
 The footer shows what Enter and ⌘Enter will do for the highlighted row. From an empty new tab, Enter reuses that tab rather than opening another.
@@ -40,6 +41,7 @@ The footer shows what Enter and ⌘Enter will do for the highlighted row. From a
 - **Open tabs** in every window.
 - **Bookmarks**, by title, URL or the folders they're in (`recipes` finds everything in a Recipes folder). The folder path shows next to the URL. The top-level folders (bookmarks bar, Other bookmarks) are left out of it.
 - **History:** your 2,000 most recent pages.
+- **Addresses:** type something that looks like a URL (`github.com/anthropics`, `localhost:3000`, `https://…`, `chrome://extensions`) and a row opens it directly. `localhost`, `*.localhost` and IP addresses open over `http://`; other addresses without a scheme get `https://`. If a tab or bookmark is already that page, it takes the row's place, so Enter switches to the open tab instead of opening it again. Words ending in a file extension, like `node.js`, count as searches.
 - **Web search:** once you type, there's always a "Search the web" row, so Enter always does something. It uses Helium's default search engine (Settings → Search engine). Nothing is sent to the search engine until you choose that row: there are no live suggestions.
 
 With nothing typed you see only open tabs, most recently used first, with the tab you're on last. Bookmarks and history appear once you type.
@@ -50,7 +52,7 @@ With nothing typed you see only open tabs, most recently used first, with the ta
 2. **Open tabs, then bookmarks, then history**, among equally good matches.
 3. **Recency**, and for bookmarks and history, how often you visit a page and whether you typed it into the address bar.
 
-The search row goes first when nothing matches at the start of a word, and last otherwise.
+The search row goes first when nothing matches at the start of a word, and last otherwise. An address row goes first when the text is clearly an address (it has a scheme, path, port, `localhost` or an IP address). A bare domain like `example.com` goes first only when nothing else matches at the start of a word, since it might be a search.
 
 ### Duplicates
 

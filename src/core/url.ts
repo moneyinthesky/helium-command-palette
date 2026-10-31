@@ -73,3 +73,63 @@ export function isOpenable(url: string): boolean {
     return false;
   }
 }
+
+/** What was typed, read as an address. */
+export interface TypedUrl {
+  url: string;
+  /**
+   * Unmistakably an address: it has a scheme, path, query or port, or names
+   * localhost or an IP address. A bare "example.com" could still be a search.
+   */
+  certain: boolean;
+}
+
+/** A host, then optionally a port and a path, query or fragment. No scheme, spaces or "user@". */
+const SCHEMELESS = /^(?<host>[\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)*|\[[0-9a-f:.]+\])(?::(?<port>\d+))?(?<rest>[/?#]\S*)?$/iu;
+
+const IPV4 = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
+
+/** A top-level domain: letters, or punycode. */
+const TLD = /^(\p{L}{2,63}|xn--[a-z0-9-]+)$/u;
+
+/** File extensions that look like a top-level domain: "node.js" or "package.json" is a search, not a site. */
+const FILE_EXTENSIONS = new Set([
+  "js", "mjs", "cjs", "ts", "jsx", "tsx", "json", "txt", "html", "htm", "css", "scss", "yml", "yaml",
+  "toml", "lock", "log", "exe", "dll", "png", "jpg", "jpeg", "gif", "svg", "webp", "pdf", "doc", "docx",
+  "xls", "xlsx", "csv", "zip", "tar", "gz", "dmg", "java", "kt", "swift", "rb", "cpp", "hpp", "mp3",
+  "mp4", "mov", "wav", "ini", "cfg", "conf", "env",
+]);
+
+function parseOpenable(text: string, certain: boolean): TypedUrl | null {
+  try {
+    const { href } = new URL(text);
+    return isOpenable(href) ? { url: href, certain } : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The URL to open when the query looks like an address, or null when it
+ * doesn't. Local hosts and IP addresses get http://, since dev servers rarely
+ * have certificates; everything else without a scheme gets https://.
+ */
+export function typedUrl(query: string): TypedUrl | null {
+  const text = query.trim();
+  if (!text || /\s/.test(text)) return null;
+  if (/^(https?|file|chrome):\/\//i.test(text)) return parseOpenable(text, true);
+
+  const groups = SCHEMELESS.exec(text)?.groups;
+  if (!groups) return null;
+  const host = groups.host!.toLowerCase();
+  if (host === "localhost" || host.endsWith(".localhost") || IPV4.test(host) || host.startsWith("[")) {
+    return parseOpenable(`http://${text}`, true);
+  }
+  const tld = host.slice(host.lastIndexOf(".") + 1);
+  if (host.includes(".") && TLD.test(tld) && !FILE_EXTENSIONS.has(tld)) {
+    return parseOpenable(`https://${text}`, Boolean(groups.port || groups.rest));
+  }
+  // A name on the local network with a port, like "devbox:8080".
+  if (groups.port) return parseOpenable(`http://${text}`, true);
+  return null;
+}

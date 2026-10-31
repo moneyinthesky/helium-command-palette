@@ -72,4 +72,34 @@ test.describe("palette (popup page)", () => {
     await expect(hints).toContainText(/(⌘|Ctrl\+)↵ Search here/);
     await expect(hints).toContainText("esc Close");
   });
+
+  test("Cmd/Ctrl+Backspace closes the highlighted tab and keeps the palette open", async ({ context, worker, extensionId }) => {
+    await (await context.newPage()).goto(pageUrl("Keep me"));
+    await (await context.newPage()).goto(pageUrl("Close me"));
+    const palette = await context.newPage();
+    await palette.goto(`chrome-extension://${extensionId}/palette.html`);
+    const input = palette.locator(".input");
+    const titles = palette.locator(".row .title");
+    const countTabs = () => worker.evaluate(async () => (await chrome.tabs.query({})).length);
+
+    await input.fill("close me");
+    await expect(titles.first()).toHaveText("Close me");
+    await expect(palette.locator(".hints")).toContainText(/(⌘|Ctrl\+)⌫ Close tab/);
+    const tabsBefore = await countTabs();
+
+    await palette.keyboard.press("ControlOrMeta+Backspace");
+    await expect.poll(countTabs).toBe(tabsBefore - 1);
+    // Its history entry may come back in its place, but not as a tab.
+    await expect(palette.locator('.row[data-kind="tab"] .title').filter({ hasText: "Close me" })).toHaveCount(0);
+    expect(await worker.evaluate(async () => (await chrome.tabs.query({ title: "Keep me" })).length)).toBe(1);
+    await expect(input).toHaveValue("close me");
+    await expect(palette.locator('.row[aria-selected="true"]')).toHaveCount(1);
+
+    // On any other row the key edits the text as usual.
+    await input.fill("zzzz-no-match");
+    await expect(palette.locator(".row .badge")).toHaveText(["Search"]);
+    await palette.keyboard.press("ControlOrMeta+Backspace");
+    await expect(input).not.toHaveValue("zzzz-no-match");
+    expect(await countTabs()).toBe(tabsBefore - 1);
+  });
 });

@@ -64,6 +64,7 @@ export async function execute(item: PaletteItem, alternate: boolean, sourceTabId
     // Enter opens a new tab; ⌘Enter replaces the current page.
     case "bookmark":
     case "history":
+    case "url":
       await openUrl(item.url, alternate, sourceTabId);
       return;
     case "search":

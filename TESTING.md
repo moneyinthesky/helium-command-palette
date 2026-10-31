@@ -38,6 +38,8 @@
 - [ ] With nothing typed: tabs from both windows, most recently used first. The tab you're on is last.
 - [ ] Enter on a tab in the other window brings that window to the front on that tab, and the palette closes.
 - [ ] Clicking a row does the same.
+- [ ] ⌘⌫ (Ctrl+⌫) on a highlighted tab closes it. Its row disappears, the palette stays open, and the highlight stays on the row that moved up.
+- [ ] ⌘⌫ on the search row deletes the text instead of closing anything.
 
 ## History
 
@@ -63,6 +65,14 @@
 - [ ] ⌘Enter searches in the current tab.
 - [ ] When a tab or history page matches at the start of a word, the search row moves to the bottom.
 
+## Addresses
+
+- [ ] Typing `example.org/some/path` shows a **URL** row first. Enter opens `https://example.org/some/path` in a new tab next to the current one; ⌘Enter opens it in the current tab.
+- [ ] Typing `localhost:3000` opens `http://localhost:3000/`, not `https://`.
+- [ ] Typing the address of a page that's open in a tab shows that tab first, with no URL row. Enter switches to it.
+- [ ] Typing `node.js` shows no URL row, only results and the search row.
+- [ ] The URL row shows the site's favicon if you've visited it before, and a globe otherwise.
+
 ## Ranking
 
 - [ ] Typing the start of a word in a history title (say `ama` for Amazon) ranks it above a tab that only contains those letters mid-word (`Ramaswamy`).
@@ -72,7 +82,7 @@
 ## Keyboard and footer
 
 - [ ] ↑/↓ and Ctrl+N/Ctrl+P move the highlight and wrap at the ends.
-- [ ] The footer shows "↵ Switch to tab" on tabs, and "↵ Open in new tab" plus "⌘↵ Open here" on history.
+- [ ] The footer shows "↵ Switch to tab" and "⌘⌫ Close tab" on tabs, and "↵ Open in new tab" plus "⌘↵ Open here" on history.
 - [ ] On Windows and Linux, the footer says `Ctrl+↵` instead of `⌘↵`.
 
 ## Appearance
