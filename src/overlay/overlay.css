@@ -11,8 +11,8 @@
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  padding-top: 15vh;
-  background: rgba(0, 0, 0, 0.3);
+  padding-top: 25vh;
+  background: rgba(0, 0, 0, 0.55);
   animation: fade-in 80ms ease-out;
 }
 
@@ -28,7 +28,7 @@
   position: relative;
   box-sizing: border-box;
   width: min(640px, calc(100vw - 32px));
-  max-height: min(520px, 75vh);
+  max-height: min(520px, 70vh);
   display: flex;
   padding: var(--border-width);
   border-radius: 12px;
