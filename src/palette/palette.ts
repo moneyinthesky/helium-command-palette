@@ -21,6 +21,16 @@ export function faviconUrl(pageUrl: string): string {
   return url.href;
 }
 
+/**
+ * Adds styles to a shadow root as a constructed stylesheet. Unlike a <style>
+ * element, this isn't blocked by a page's Content-Security-Policy.
+ */
+export function adoptCss(root: ShadowRoot, css: string): void {
+  const sheet = new CSSStyleSheet();
+  sheet.replaceSync(css);
+  root.adoptedStyleSheets = [...root.adoptedStyleSheets, sheet];
+}
+
 function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
   className?: string,
@@ -59,7 +69,7 @@ function highlighted(text: string, matches: number[]): DocumentFragment {
   return frag;
 }
 
-/** The palette panel: input plus result list. Mounted inside a shadow root by each surface. */
+/** The palette panel: input plus result list. Each surface mounts it into an element inside a shadow root. */
 export class Palette {
   private items: PaletteItem[] = [];
   private results: ScoredItem[] = [];
@@ -71,13 +81,12 @@ export class Palette {
   private readonly empty = el("div", "empty");
 
   constructor(
-    private readonly root: ShadowRoot,
+    private readonly container: HTMLElement,
     private readonly host: PaletteHost,
   ) {}
 
   mount(): void {
-    const style = el("style");
-    style.textContent = css;
+    adoptCss(this.container.getRootNode() as ShadowRoot, css);
 
     const panel = el("div", "panel");
     panel.setAttribute("role", "dialog");
@@ -95,7 +104,7 @@ export class Palette {
     this.empty.hidden = true;
 
     panel.append(this.input, this.list, this.empty);
-    this.root.append(style, panel);
+    this.container.append(panel);
 
     this.input.addEventListener("input", () => this.update());
     this.input.addEventListener("keydown", (e) => this.onKeyDown(e));

@@ -2,14 +2,15 @@ const PALETTE_URL = chrome.runtime.getURL("palette.html");
 const WIDTH = 640;
 const HEIGHT = 480;
 
-/** Opens the palette in a small popup window over the source window, or closes it if open. */
-export async function togglePaletteWindow(sourceTab?: chrome.tabs.Tab): Promise<void> {
+/** Closes any open palette windows. Returns whether there were any. */
+export async function closePaletteWindows(): Promise<boolean> {
   const open = (await chrome.tabs.query({})).filter((t) => t.url?.startsWith(PALETTE_URL));
-  if (open.length > 0) {
-    await Promise.all(open.map((t) => chrome.windows.remove(t.windowId)));
-    return;
-  }
+  await Promise.all(open.map((t) => chrome.windows.remove(t.windowId)));
+  return open.length > 0;
+}
 
+/** Opens the palette in a small popup window centred over the source window. */
+export async function openPaletteWindow(sourceTab?: chrome.tabs.Tab): Promise<void> {
   const anchor = sourceTab
     ? await chrome.windows.get(sourceTab.windowId)
     : await chrome.windows.getLastFocused({ windowTypes: ["normal"] });

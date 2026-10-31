@@ -1,7 +1,7 @@
 import type { Request, Response } from "../core/messages";
 import type { PaletteItem } from "../core/types";
 import { execute } from "./actions";
-import { togglePaletteWindow } from "./palette-window";
+import { togglePalette } from "./launcher";
 import { tabsProvider } from "./providers/tabs";
 import type { Provider, ProviderContext } from "./providers/types";
 
@@ -13,18 +13,19 @@ async function snapshot(ctx: ProviderContext): Promise<PaletteItem[]> {
   return lists.flat();
 }
 
-async function handleRequest(req: Request): Promise<unknown> {
+async function handleRequest(req: Request, sender: chrome.runtime.MessageSender): Promise<unknown> {
   switch (req.type) {
     case "snapshot":
-      return snapshot({ sourceTabId: req.sourceTabId });
+      // The overlay doesn't know its tab id, but the sender does.
+      return snapshot({ sourceTabId: req.sourceTabId ?? sender.tab?.id });
     case "execute":
       await execute(req.item, req.newTab);
       return null;
   }
 }
 
-chrome.runtime.onMessage.addListener((req: Request, _sender, sendResponse) => {
-  handleRequest(req).then(
+chrome.runtime.onMessage.addListener((req: Request, sender, sendResponse) => {
+  handleRequest(req, sender).then(
     (data) => sendResponse({ ok: true, data } satisfies Response),
     (err: unknown) => sendResponse({ ok: false, error: String(err) } satisfies Response),
   );
@@ -32,8 +33,13 @@ chrome.runtime.onMessage.addListener((req: Request, _sender, sendResponse) => {
 });
 
 chrome.commands.onCommand.addListener((command, tab) => {
-  if (command === PALETTE_COMMAND) void togglePaletteWindow(tab);
+  if (command === PALETTE_COMMAND) void togglePalette(tab);
 });
+
+if (__E2E__) {
+  // Playwright can't press extension shortcuts, so tests call this instead.
+  Object.assign(globalThis, { __test: { togglePalette } });
+}
 
 chrome.runtime.onInstalled.addListener(async () => {
   // Chromium leaves the shortcut unassigned, without telling the user, when the

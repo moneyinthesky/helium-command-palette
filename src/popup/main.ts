@@ -11,8 +11,12 @@ async function close(): Promise<void> {
   else window.close();
 }
 
-const app = document.getElementById("app")!;
-const palette = new Palette(app.attachShadow({ mode: "open" }), {
+const root = document.getElementById("app")!.attachShadow({ mode: "open" });
+const container = document.createElement("div");
+container.className = "window";
+root.append(container);
+
+const palette = new Palette(container, {
   loadItems: () => request({ type: "snapshot", sourceTabId }),
   execute: async (item, { newTab }) => {
     await request({ type: "execute", item, newTab });

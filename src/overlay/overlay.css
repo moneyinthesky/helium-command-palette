@@ -1,0 +1,44 @@
+/* Page-overlay surface. Loaded after palette.css, so these rules win. */
+:host {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+}
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 15vh;
+  background: rgba(0, 0, 0, 0.3);
+  animation: fade-in 80ms ease-out;
+}
+
+.frame {
+  width: min(640px, calc(100vw - 32px));
+  max-height: min(520px, 75vh);
+  display: flex;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px var(--border),
+    0 20px 60px rgba(0, 0, 0, 0.35);
+}
+
+.panel {
+  height: auto;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .backdrop {
+    animation: none;
+  }
+}

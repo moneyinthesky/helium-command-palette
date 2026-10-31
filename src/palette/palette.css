@@ -1,5 +1,6 @@
 :host {
   all: initial;
+  display: block;
   --bg: #ffffff;
   --fg: #1d1d1f;
   --muted: #6e6e73;
@@ -20,6 +21,11 @@
     --mark: #6aa9ff;
     --badge-bg: rgba(255, 255, 255, 0.08);
   }
+}
+
+/* Popup-window surface: the panel fills the window. */
+.window {
+  height: 100%;
 }
 
 .panel {

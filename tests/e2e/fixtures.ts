@@ -4,7 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const dist = fileURLToPath(new URL("../../dist", import.meta.url));
+// Built by `pnpm test:e2e` with --e2e: see scripts/build.mjs.
+const dist = fileURLToPath(new URL("../../dist-e2e", import.meta.url));
 
 /** Helium by default; set BROWSER to test another Chromium build. */
 const executablePath = process.env.BROWSER ?? "/Applications/Helium.app/Contents/MacOS/Helium";
@@ -16,6 +17,17 @@ export const test = base.extend<{ context: BrowserContext; worker: Worker; exten
       executablePath,
       headless: true,
       args: [`--disable-extensions-except=${dist}`, `--load-extension=${dist}`],
+    });
+    // Serve test pages locally; nothing goes to the network.
+    await context.route(`${TEST_ORIGIN}/**`, (route) => {
+      const url = new URL(route.request().url());
+      const title = decodeURIComponent(url.pathname.slice(1)) || "Test page";
+      const csp = url.searchParams.get("csp");
+      return route.fulfill({
+        contentType: "text/html",
+        headers: csp ? { "Content-Security-Policy": csp } : {},
+        body: `<title>${title}</title><h1>${title}</h1><input id="page-input" autofocus>`,
+      });
     });
     await use(context);
     await context.close();
@@ -30,6 +42,24 @@ export const test = base.extend<{ context: BrowserContext; worker: Worker; exten
 });
 
 export const expect = test.expect;
+
+const TEST_ORIGIN = "https://palette.test";
+
+/** A real https page served by the route above; content scripts can be injected into it. */
+export const httpsUrl = (title: string, { csp }: { csp?: string } = {}) => {
+  const url = new URL(`${TEST_ORIGIN}/${encodeURIComponent(title)}`);
+  if (csp) url.searchParams.set("csp", csp);
+  return url.href;
+};
+
+/** Does what pressing the shortcut does, for the tab showing `page`. */
+export async function pressShortcut(worker: Worker, page: Page): Promise<void> {
+  await worker.evaluate(async (url) => {
+    const [tab] = await chrome.tabs.query({ url });
+    // Exposed only in the --e2e build.
+    await (globalThis as unknown as { __test: { togglePalette(t?: chrome.tabs.Tab): Promise<void> } }).__test.togglePalette(tab);
+  }, page.url());
+}
 
 /** A page with a known title and no network access. */
 export const pageUrl = (title: string) =>
