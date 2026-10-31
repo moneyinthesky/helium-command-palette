@@ -56,9 +56,9 @@ const HINTS: Record<PaletteItem["kind"], [key: string, action: string][]> = {
 const SVG_NS = "http://www.w3.org/2000/svg";
 
 /** A 16×16 line icon in the text colour, from shapes given as [tag, attributes]. */
-function glyph(shapes: [tag: string, attrs: Record<string, string>][]): SVGSVGElement {
+function glyph(shapes: [tag: string, attrs: Record<string, string>][], className = "icon"): SVGSVGElement {
   const svg = document.createElementNS(SVG_NS, "svg");
-  svg.setAttribute("class", "icon glyph");
+  svg.setAttribute("class", `${className} glyph`);
   svg.setAttribute("viewBox", "0 0 16 16");
   svg.setAttribute("aria-hidden", "true");
   for (const [tag, attrs] of shapes) {
@@ -83,6 +83,42 @@ const globeIcon = () =>
     ["ellipse", { cx: "8", cy: "8", rx: "2.6", ry: "6" }],
     ["path", { d: "M2 8h12" }],
   ]);
+
+const SPEAKER = "M2.5 6H5l3-2.5v9L5 10H2.5z";
+
+/** Small icons after a tab's title, labelled for screen readers. */
+const STATE_ICONS = {
+  pinned: [["path", { d: "M5.5 2.5h5M6.5 2.5V6l-2 2.5h7l-2-2.5V2.5M8 8.5V14" }]],
+  audible: [
+    ["path", { d: SPEAKER }],
+    ["path", { d: "M10.5 5.5a3.5 3.5 0 0 1 0 5M12.5 3.5a6.4 6.4 0 0 1 0 9" }],
+  ],
+  muted: [
+    ["path", { d: SPEAKER }],
+    ["path", { d: "M10.5 6l4 4M14.5 6l-4 4" }],
+  ],
+} satisfies Record<string, [string, Record<string, string>][]>;
+
+const STATE_LABEL: Record<keyof typeof STATE_ICONS, string> = {
+  pinned: "Pinned",
+  audible: "Playing sound",
+  muted: "Muted",
+};
+
+function stateIcons(tab: TabItem): SVGSVGElement[] {
+  const states: (keyof typeof STATE_ICONS)[] = [];
+  if (tab.pinned) states.push("pinned");
+  // A muted tab can still be "audible": it would be playing if it weren't muted.
+  if (tab.muted) states.push("muted");
+  else if (tab.audible) states.push("audible");
+  return states.map((state) => {
+    const svg = glyph(STATE_ICONS[state], "state");
+    svg.removeAttribute("aria-hidden");
+    svg.setAttribute("role", "img");
+    svg.setAttribute("aria-label", STATE_LABEL[state]);
+    return svg;
+  });
+}
 
 /**
  * Adds styles to a shadow root as a constructed stylesheet. Unlike a <style>
@@ -236,21 +272,40 @@ export class Palette {
       item.kind === "search" ? searchIcon() : this.favicon(item.url, item.kind === "url" ? globeIcon : undefined);
 
     const text = el("div", "text");
+    const line = el("div", "line");
     const title = el("div", "title");
     title.append(highlighted(item.title, result.titleMatches));
+    line.append(title, ...(item.kind === "tab" ? stateIcons(item) : []));
     const url = el("div", "url");
     if (item.kind === "bookmark" && item.folder) {
       const folder = el("span", "folder");
       folder.append(highlighted(item.folder, result.folderMatches));
       url.append(folder, " · ");
     }
+    if (item.kind === "tab" && item.group) {
+      const group = el("span", "group");
+      group.dataset.color = item.group.color;
+      group.append(el("span", "dot"));
+      if (item.group.title) {
+        group.append(highlighted(item.group.title, result.folderMatches));
+        url.append(group, " · ");
+      } else {
+        url.append(group, " ");
+      }
+    }
     url.append(highlighted(item.displayUrl, result.urlMatches));
-    text.append(title, url);
+    text.append(line, url);
 
     const badge = el("span", "badge");
     badge.textContent = KIND_LABEL[item.kind];
 
-    row.append(icon, text, badge);
+    row.append(icon, text);
+    if (item.kind === "tab" && item.otherWindow) {
+      const where = el("span", "where");
+      where.textContent = "Other window";
+      row.append(where);
+    }
+    row.append(badge);
     row.addEventListener("mousemove", () => {
       if (this.selected !== index) {
         this.selected = index;

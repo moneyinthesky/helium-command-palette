@@ -14,6 +14,10 @@ function result(id: number, quality: Quality, isSource = false, url = `https://t
     displayUrl: url.replace(/^https?:\/\//, ""),
     lastAccessed: 0,
     isSource,
+    otherWindow: false,
+    pinned: false,
+    audible: false,
+    muted: false,
   };
   return { item, score: 0, quality, titleMatches: [], urlMatches: [], folderMatches: [] };
 }

@@ -18,6 +18,16 @@
   --kind-history: #d9973a;
   --kind-search: #1fa58f;
   --tint: 7%;
+  /* Tab group colours, as in the tab strip. */
+  --group-grey: #5f6368;
+  --group-blue: #1a73e8;
+  --group-red: #d93025;
+  --group-yellow: #f9ab00;
+  --group-green: #1e8e3e;
+  --group-pink: #d01884;
+  --group-purple: #a142f4;
+  --group-cyan: #007b83;
+  --group-orange: #fa903e;
   color-scheme: light dark;
 }
 
@@ -31,6 +41,15 @@
     --mark: #6aa9ff;
     --badge-bg: rgba(255, 255, 255, 0.08);
     --tint: 10%;
+    --group-grey: #dadce0;
+    --group-blue: #8ab4f8;
+    --group-red: #f28b82;
+    --group-yellow: #fdd663;
+    --group-green: #81c995;
+    --group-pink: #ff8bcb;
+    --group-purple: #d7aefb;
+    --group-cyan: #78d9ec;
+    --group-orange: #fcad70;
   }
 }
 
@@ -131,6 +150,19 @@
   min-width: 0;
 }
 
+/* Title, then pinned and sound icons that stay visible when the title is cut off. */
+.line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.state {
+  flex: none;
+  width: 13px;
+  height: 13px;
+}
+
 .title,
 .url {
   overflow: hidden;
@@ -141,6 +173,33 @@
 .url {
   color: var(--muted);
   font-size: 12px;
+}
+
+.dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 5px;
+  border-radius: 50%;
+  vertical-align: 1px;
+  background: var(--dot);
+}
+
+.group[data-color="grey"] { --dot: var(--group-grey); }
+.group[data-color="blue"] { --dot: var(--group-blue); }
+.group[data-color="red"] { --dot: var(--group-red); }
+.group[data-color="yellow"] { --dot: var(--group-yellow); }
+.group[data-color="green"] { --dot: var(--group-green); }
+.group[data-color="pink"] { --dot: var(--group-pink); }
+.group[data-color="purple"] { --dot: var(--group-purple); }
+.group[data-color="cyan"] { --dot: var(--group-cyan); }
+.group[data-color="orange"] { --dot: var(--group-orange); }
+
+/* "Other window", just before the badge. */
+.where {
+  flex: none;
+  color: var(--muted);
+  font-size: 11px;
 }
 
 mark {

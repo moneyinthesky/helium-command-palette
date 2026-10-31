@@ -38,7 +38,7 @@ The footer shows what Enter and ⌘Enter will do for the highlighted row. From a
 
 ### What you can find
 
-- **Open tabs** in every window.
+- **Open tabs** in every window. Rows show a pin for pinned tabs, a speaker for tabs playing sound (crossed out when muted), the tab group's colour and name, and "Other window" for tabs that aren't in your current window. Typing a group's name finds every tab in it (`research`).
 - **Bookmarks**, by title, URL or the folders they're in (`recipes` finds everything in a Recipes folder). The folder path shows next to the URL. The top-level folders (bookmarks bar, Other bookmarks) are left out of it.
 - **History:** your 2,000 most recent pages.
 - **Addresses:** type something that looks like a URL (`github.com/anthropics`, `localhost:3000`, `https://…`, `chrome://extensions`) and a row opens it directly. `localhost`, `*.localhost` and IP addresses open over `http://`; other addresses without a scheme get `https://`. If a tab or bookmark is already that page, it takes the row's place, so Enter switches to the open tab instead of opening it again. Words ending in a file extension, like `node.js`, count as searches.
@@ -92,6 +92,7 @@ The default is ⌘K on macOS and Ctrl+K elsewhere. To change it, go to `chrome:/
 | Permission | Why |
 |---|---|
 | `tabs` | Read the titles and URLs of open tabs, and switch to one. |
+| `tabGroups` | Show each tab's group name and colour, and find tabs by group name. Groups are only read, never changed. Chromium describes this as "View and manage your tab groups". |
 | `bookmarks` | Search your bookmarks. They're only read, never changed. |
 | `history` | Search your browsing history. It's read locally when the palette opens and never leaves the browser. |
 | `search` | Run a web search with your default search engine when you choose the search row. |

@@ -11,6 +11,15 @@ interface BaseItem {
   displayUrl: string;
 }
 
+/** The colours Chromium offers for tab groups. */
+export type GroupColor = "grey" | "blue" | "red" | "yellow" | "green" | "pink" | "purple" | "cyan" | "orange";
+
+export interface TabGroup {
+  /** Empty for a group that was never named. */
+  title: string;
+  color: GroupColor;
+}
+
 export interface TabItem extends BaseItem {
   kind: "tab";
   tabId: number;
@@ -19,6 +28,13 @@ export interface TabItem extends BaseItem {
   lastAccessed: number;
   /** The tab the palette was opened from; ranked last. */
   isSource: boolean;
+  /** In a different window from the tab the palette was opened from, so choosing it brings that window forward. */
+  otherWindow: boolean;
+  pinned: boolean;
+  /** Playing sound right now (or in the last couple of seconds). */
+  audible: boolean;
+  muted: boolean;
+  group?: TabGroup;
 }
 
 export interface HistoryItem extends BaseItem {
@@ -72,7 +88,7 @@ export interface ScoredItem {
   titleMatches: number[];
   /** Character positions in `item.displayUrl` that matched the query. */
   urlMatches: number[];
-  /** Character positions in a bookmark's `folder` that matched the query. */
+  /** Character positions in a bookmark's `folder` or a tab's group title that matched the query. */
   folderMatches: number[];
 }
 

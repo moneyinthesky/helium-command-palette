@@ -13,6 +13,10 @@ const tab = (url: string): TabItem => ({
   displayUrl: url,
   lastAccessed: 0,
   isSource: false,
+  otherWindow: false,
+  pinned: false,
+  audible: false,
+  muted: false,
 });
 
 const visit = (url: string, lastVisitTime = 0, visitCount = 1, typedCount = 0, title = url): HistoryItem => ({

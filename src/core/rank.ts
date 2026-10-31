@@ -49,6 +49,13 @@ function boost(item: SourceItem, now: number): number {
   }
 }
 
+/** A bookmark's folder or a tab's group title, matched like a third field: "work" finds everything in Work. */
+function folderOf(item: SourceItem): string {
+  if (item.kind === "bookmark") return item.folder;
+  if (item.kind === "tab") return item.group?.title ?? "";
+  return "";
+}
+
 /** With nothing typed: most recently used first, the tab you're already on last. */
 function emptyQueryScore(tab: TabItem): number {
   return (tab.isSource ? 0 : 1e15) + tab.lastAccessed;
@@ -69,7 +76,7 @@ export function rank(
       scored.push({ item, score: emptyQueryScore(item), titleMatches: [], urlMatches: [], folderMatches: [] });
       continue;
     }
-    const m = matchFields(tokens, item.title, item.displayUrl, item.kind === "bookmark" ? item.folder : "");
+    const m = matchFields(tokens, item.title, item.displayUrl, folderOf(item));
     if (!m) continue;
     scored.push({ item, ...m, score: group(item, m.quality) * GROUP_SIZE + m.score + boost(item, now) });
   }

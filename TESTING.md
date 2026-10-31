@@ -38,6 +38,10 @@
 - [ ] With nothing typed: tabs from both windows, most recently used first. The tab you're on is last.
 - [ ] Enter on a tab in the other window brings that window to the front on that tab, and the palette closes.
 - [ ] Clicking a row does the same.
+- [ ] A pinned tab shows a pin after its title. A tab playing sound shows a speaker, and a muted one a crossed-out speaker. Both stay visible when the title is too long to fit.
+- [ ] A tab in a named group shows the group's colour and name before its URL, in the same colour as the tab strip, in light and dark mode. A tab in an unnamed group shows just the colour.
+- [ ] Typing a group's name lists the tabs in that group.
+- [ ] Tabs in the other window say "Other window"; tabs in this one don't.
 - [ ] ⌘⌫ (Ctrl+⌫) on a highlighted tab closes it. Its row disappears, the palette stays open, and the highlight stays on the row that moved up.
 - [ ] ⌘⌫ on the search row deletes the text instead of closing anything.
 

@@ -81,9 +81,10 @@ export interface FieldMatch {
 }
 
 /**
- * Every token must match the title, the URL or a bookmark's folder, in any
- * order ("pr github"). For each token the best-quality match wins; URL and
- * folder matches count for less than title matches of the same quality.
+ * Every token must match the title, the URL or a folder (a bookmark's folder
+ * or a tab's group), in any order ("pr github"). For each token the
+ * best-quality match wins; URL and folder matches count for less than title
+ * matches of the same quality.
  * Fuzzy matching only applies to titles, since subsequences of URLs are mostly
  * noise.
  */

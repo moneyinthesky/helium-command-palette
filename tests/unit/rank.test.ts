@@ -17,6 +17,10 @@ function tab(id: number, title: string, url: string, ageHours: number, isSource 
     displayUrl: toDisplayUrl(url),
     lastAccessed: NOW - ageHours * HOUR,
     isSource,
+    otherWindow: false,
+    pinned: false,
+    audible: false,
+    muted: false,
   };
 }
 
@@ -164,6 +168,15 @@ describe("rank", () => {
       const items = [bookmark("https://a.com/news", "News"), bookmark("https://b.com/news", "News", "", 1, 40)];
       expect(ids(rank(items, "news", { now: NOW }))).toEqual(["bookmark:https://b.com/news", "bookmark:https://a.com/news"]);
     });
+  });
+
+  it("finds tabs by their group's title", () => {
+    const grouped: TabItem = { ...tab(1, "Lasagne", "https://food.com/lasagne", 1), group: { title: "Recipes", color: "green" } };
+    const items = [grouped, tab(2, "Other", "https://x.com", 0)];
+    const [hit, ...rest] = rank(items, "recipes", { now: NOW });
+    expect(hit!.item.id).toBe("tab:1");
+    expect(hit!.folderMatches).toEqual([0, 1, 2, 3, 4, 5, 6]);
+    expect(rest).toEqual([]);
   });
 
   it("caps results", () => {

@@ -102,4 +102,45 @@ test.describe("palette (popup page)", () => {
     await expect(input).not.toHaveValue("zzzz-no-match");
     expect(await countTabs()).toBe(tabsBefore - 1);
   });
+
+  test("shows pinned, sound, group and window details on tab rows", async ({ context, worker, extensionId }) => {
+    const alpha = await context.newPage();
+    await alpha.goto(pageUrl("Alpha page"));
+    const titles = ["Pinned page", "Muted page", "Grouped page", "Far page"];
+    const urls = Object.fromEntries(titles.map((t) => [t, pageUrl(t)]));
+    const alphaId = await worker.evaluate(async (urls) => {
+      const [alpha] = await chrome.tabs.query({ title: "Alpha page" });
+      const windowId = alpha!.windowId;
+      const open = (url: string, props: chrome.tabs.CreateProperties = {}) =>
+        chrome.tabs.create({ windowId, url, active: false, ...props });
+      await open(urls["Pinned page"]!, { pinned: true });
+      const muted = await open(urls["Muted page"]!);
+      await chrome.tabs.update(muted.id!, { muted: true });
+      const grouped = await open(urls["Grouped page"]!);
+      const groupId = await chrome.tabs.group({ tabIds: grouped.id!, createProperties: { windowId } });
+      await chrome.tabGroups.update(groupId, { title: "Research", color: "blue" });
+      await chrome.windows.create({ url: urls["Far page"]! });
+      return alpha!.id!;
+    }, urls);
+    // Rows show whatever title a tab has when the palette opens.
+    await expect
+      .poll(() => worker.evaluate(async () => (await chrome.tabs.query({})).map((t) => t.title)))
+      .toEqual(expect.arrayContaining(titles));
+
+    const palette = await context.newPage();
+    await palette.goto(`chrome-extension://${extensionId}/palette.html?sourceTabId=${alphaId}`);
+    const row = (title: string) => palette.locator(".row").filter({ has: palette.locator(".title", { hasText: title }) });
+
+    await expect(row("Pinned page").locator('[aria-label="Pinned"]')).toHaveCount(1);
+    await expect(row("Muted page").locator('[aria-label="Muted"]')).toHaveCount(1);
+    await expect(row("Alpha page").locator(".state")).toHaveCount(0);
+    await expect(row("Grouped page").locator(".group")).toHaveText("Research");
+    await expect(row("Grouped page").locator(".group")).toHaveAttribute("data-color", "blue");
+    await expect(row("Far page").locator(".where")).toHaveText("Other window");
+    await expect(row("Grouped page").locator(".where")).toHaveCount(0);
+
+    await palette.locator(".input").fill("research");
+    await expect(palette.locator(".row .title").first()).toHaveText("Grouped page");
+    await expect(palette.locator(".row").first().locator(".group mark")).toHaveText("Research");
+  });
 });
