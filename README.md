@@ -1,6 +1,6 @@
 # Command Palette for Helium
 
-An Arc-style, keyboard-driven command palette for [Helium](https://helium.computer). It also works in Chrome. Press **⌘K** and type to jump to an open tab, reopen something from your history, or search the web.
+An Arc-style, keyboard-driven command palette for [Helium](https://helium.computer). It also works in Chrome. Press **⌘K** and type to jump to an open tab, open a bookmark, reopen something from your history, or search the web.
 
 Manifest V3, plain TypeScript, no frameworks. It makes no network requests of its own and has no analytics.
 
@@ -27,10 +27,10 @@ Press **⌘K** (Ctrl+K on Windows and Linux) on any page. Press it again, press 
 
 | Key | Does |
 |---|---|
-| Type | Filter. Words can match the title or URL, in any order (`pr github`). |
+| Type | Filter. Words can match the title, the URL or a bookmark's folder, in any order (`pr github`). |
 | ↑ ↓ or Ctrl+N / Ctrl+P | Move the highlight |
-| Enter | Switch to a tab, or open a history page or web search in a new tab next to the current one |
-| ⌘Enter (Ctrl+Enter) | Open a history page or web search in the current tab instead |
+| Enter | Switch to a tab, or open a bookmark, history page or web search in a new tab next to the current one |
+| ⌘Enter (Ctrl+Enter) | Open a bookmark, history page or web search in the current tab instead |
 | Esc | Close |
 
 The footer shows what Enter and ⌘Enter will do for the highlighted row. From an empty new tab, Enter reuses that tab rather than opening another.
@@ -38,22 +38,23 @@ The footer shows what Enter and ⌘Enter will do for the highlighted row. From a
 ### What you can find
 
 - **Open tabs** in every window.
+- **Bookmarks**, by title, URL or the folders they're in (`recipes` finds everything in a Recipes folder). The folder path shows next to the URL. The top-level folders (bookmarks bar, Other bookmarks) are left out of it.
 - **History:** your 2,000 most recent pages.
 - **Web search:** once you type, there's always a "Search the web" row, so Enter always does something. It uses Helium's default search engine (Settings → Search engine). Nothing is sent to the search engine until you choose that row: there are no live suggestions.
 
-With nothing typed you see open tabs, most recently used first, then recent history (dimmed). The tab you're on is always last.
+With nothing typed you see open tabs, most recently used first, then recent history (dimmed). Bookmarks only appear once you type, except that a bookmarked page you've visited shows in its history entry's place. The tab you're on is always last.
 
 ### How results are ordered
 
 1. **Where your text matches.** The start of a word in the title, or a URL segment like `amazon` in `amazon.co.uk`, beats a match inside a word, which beats letters scattered through the title. So `ama` finds Amazon before a tab titled "Vivek Ramaswamy", but `rama` puts that tab first.
-2. **Open tabs before history**, among equally good matches.
-3. **Recency**, and for history, how often you visit a page and whether you typed it into the address bar.
+2. **Open tabs, then bookmarks, then history**, among equally good matches.
+3. **Recency**, and for bookmarks and history, how often you visit a page and whether you typed it into the address bar.
 
 The search row goes first when nothing matches at the start of a word, and last otherwise.
 
 ### Duplicates
 
-Each page appears once. A page that's open shows only as its tab, and repeat visits collapse into one history entry.
+Each page appears once. A page that's open shows only as its tab; otherwise a bookmarked page shows as the bookmark, ranked by its history visits. Repeat visits collapse into one history entry.
 
 Two URLs count as the same page when they differ only in:
 - the `#fragment`
@@ -82,13 +83,14 @@ The default is ⌘K on macOS and Ctrl+K elsewhere. To change it, go to `chrome:/
 - **Page shortcuts:** keys you type in the overlay are hidden from the page's normal key handlers. A page that listens in the capture phase can still see them, though few do.
 - **Fullscreen:** the overlay doesn't show over fullscreen video. Exit fullscreen first.
 - **History depth:** only the 2,000 most recent pages are searched.
-- **Not built (yet):** extension mode (`>` to list, enable and disable extensions), bookmarks, recently closed tabs, and custom commands. See [PLAN.md](PLAN.md). Triggering another extension's toolbar button or commands isn't possible with Chromium's APIs.
+- **Not built (yet):** extension mode (`>` to list, enable and disable extensions), recently closed tabs, and custom commands. See [PLAN.md](PLAN.md). Triggering another extension's toolbar button or commands isn't possible with Chromium's APIs.
 
 ## Permissions
 
 | Permission | Why |
 |---|---|
 | `tabs` | Read the titles and URLs of open tabs, and switch to one. |
+| `bookmarks` | Search your bookmarks. They're only read, never changed. |
 | `history` | Search your browsing history. It's read locally when the palette opens and never leaves the browser. |
 | `search` | Run a web search with your default search engine when you choose the search row. |
 | `favicon` | Read each row's icon from the browser's local favicon cache, without fetching it from the site. |
@@ -117,7 +119,7 @@ pnpm icons           # re-render src/icons/*.png from assets/icon.svg (uses Heli
 | Path | What's there |
 |---|---|
 | `src/background/` | Service worker: the shortcut, opening the overlay or window, actions, favicons |
-| `src/background/providers/` | Sources of results (tabs, history). New sources go here. |
+| `src/background/providers/` | Sources of results (tabs, bookmarks, history). New sources go here. |
 | `src/core/` | Pure logic shared by both sides: matching, ranking, de-duplication, the search row, messages |
 | `src/palette/` | The palette UI, shared by both surfaces |
 | `src/overlay/` | The in-page overlay (injected content script) |

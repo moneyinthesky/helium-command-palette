@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { dedupeHistory, mergeItems } from "../../src/core/merge";
-import type { HistoryItem, TabItem } from "../../src/core/types";
+import type { BookmarkItem, HistoryItem, TabItem } from "../../src/core/types";
 import { pageKey } from "../../src/core/url";
 
 const tab = (url: string): TabItem => ({
@@ -26,6 +26,19 @@ const visit = (url: string, lastVisitTime = 0, visitCount = 1, typedCount = 0, t
   typedCount,
 });
 
+const bookmark = (url: string, folder = ""): BookmarkItem => ({
+  kind: "bookmark",
+  id: `bookmark:${url}:${folder}`,
+  title: url,
+  url,
+  displayUrl: url,
+  folder,
+  dateAdded: 0,
+  lastVisitTime: 0,
+  visitCount: 0,
+  typedCount: 0,
+});
+
 describe("mergeItems", () => {
   it("drops history for pages open in a tab, ignoring the #fragment", () => {
     const merged = mergeItems([
@@ -46,9 +59,38 @@ describe("mergeItems", () => {
     expect(merged.map((i) => i.kind)).toEqual(["tab"]);
   });
 
+  it("shows a bookmarked page once, as the bookmark, with its history's visits", () => {
+    const merged = mergeItems([
+      [bookmark("https://a.com/doc")],
+      [visit("https://a.com/doc#usage", 500, 7, 2), visit("https://b.com")],
+    ]);
+    expect(merged.map((i) => i.id)).toEqual(["bookmark:https://a.com/doc:", "history:https://b.com"]);
+    expect(merged[0]).toMatchObject({ lastVisitTime: 500, visitCount: 7, typedCount: 2 });
+  });
+
+  it("gives the visits to every bookmark of the page", () => {
+    const merged = mergeItems([
+      [bookmark("https://a.com", "Work"), bookmark("https://a.com", "Home")],
+      [visit("https://a.com", 1, 3)],
+    ]);
+    expect(merged.map((i) => (i.kind === "bookmark" ? i.visitCount : -1))).toEqual([3, 3]);
+  });
+
+  it("hides a bookmark for a page that's open in a tab", () => {
+    const merged = mergeItems([[tab("https://a.com/doc")], [bookmark("https://a.com/doc")], [visit("https://a.com/doc")]]);
+    expect(merged.map((i) => i.kind)).toEqual(["tab"]);
+  });
+
+  it("doesn't change the bookmarks it was given", () => {
+    const b = bookmark("https://a.com");
+    mergeItems([[b], [visit("https://a.com", 1, 3)]]);
+    expect(b.visitCount).toBe(0);
+  });
+
   it("works whichever source arrives first", () => {
     expect(mergeItems([[visit("https://a.com")]]).map((i) => i.id)).toEqual(["history:https://a.com"]);
     expect(mergeItems([[visit("https://a.com")], [tab("https://a.com")]]).map((i) => i.id)).toEqual(["tab:https://a.com"]);
+    expect(mergeItems([[visit("https://a.com")], [bookmark("https://a.com")]]).map((i) => i.kind)).toEqual(["bookmark"]);
   });
 });
 

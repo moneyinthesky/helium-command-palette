@@ -39,7 +39,15 @@ describe("matchFields", () => {
     expect(m).not.toBeNull();
     expect(m!.titleMatches).toEqual([0, 1, 2, 3]);
     expect(m!.urlMatches).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(m!.folderMatches).toEqual([]);
     expect(matchFields(tokenize("pull gitlab"), "Pull requests", "github.com/pulls")).toBeNull();
+  });
+
+  it("matches a folder, below a title match of the same quality", () => {
+    const m = matchFields(["recipes"], "Lasagne", "food.com/lasagne", "Home / Recipes")!;
+    expect(m.folderMatches).toEqual([7, 8, 9, 10, 11, 12, 13]);
+    expect(m.score).toBeLessThan(matchFields(["recipes"], "Recipes", "food.com/lasagne")!.score);
+    expect(matchFields(["rcps"], "Lasagne", "food.com/lasagne", "Recipes")).toBeNull();
   });
 
   it("does not fuzzy-match URLs", () => {

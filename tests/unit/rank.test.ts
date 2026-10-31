@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { rank } from "../../src/core/rank";
-import type { HistoryItem, TabItem } from "../../src/core/types";
+import type { BookmarkItem, HistoryItem, TabItem } from "../../src/core/types";
 import { isOpenable, toDisplayUrl } from "../../src/core/url";
 
 const NOW = 1_700_000_000_000;
@@ -30,6 +30,21 @@ function visit(url: string, title: string, ageHours: number, visitCount = 1, typ
     lastVisitTime: NOW - ageHours * HOUR,
     visitCount,
     typedCount,
+  };
+}
+
+function bookmark(url: string, title: string, folder = "", visitAgeHours?: number, visitCount = 0): BookmarkItem {
+  return {
+    kind: "bookmark",
+    id: `bookmark:${url}`,
+    title,
+    url,
+    displayUrl: toDisplayUrl(url),
+    folder,
+    dateAdded: NOW - 1000 * HOUR,
+    lastVisitTime: visitAgeHours === undefined ? 0 : NOW - visitAgeHours * HOUR,
+    visitCount,
+    typedCount: 0,
   };
 }
 
@@ -118,6 +133,45 @@ describe("rank", () => {
       "history:https://often.com/news",
       "history:https://once.com/news",
     ]);
+  });
+
+  describe("bookmarks", () => {
+    it("rank between tabs and history when they match equally well", () => {
+      const items = [
+        visit("https://h.com", "Rust history", 0, 500, 100),
+        bookmark("https://b.com", "Rust bookmark"),
+        tab(1, "Rust tab", "https://t.com", 48),
+      ];
+      expect(ids(rank(items, "rust", { now: NOW }))).toEqual(["tab:1", "bookmark:https://b.com", "history:https://h.com"]);
+    });
+
+    it("still lose to a better match from history", () => {
+      const items = [bookmark("https://b.com", "Trust fund"), visit("https://h.com", "Rust", 48)];
+      expect(ids(rank(items, "rust", { now: NOW }))).toEqual(["history:https://h.com", "bookmark:https://b.com"]);
+    });
+
+    it("are found by folder name", () => {
+      const items = [bookmark("https://food.com/lasagne", "Lasagne", "Home / Recipes"), bookmark("https://x.com", "Other")];
+      const [hit, ...rest] = rank(items, "recipes", { now: NOW });
+      expect(hit!.item.id).toBe("bookmark:https://food.com/lasagne");
+      expect(hit!.folderMatches).toEqual([7, 8, 9, 10, 11, 12, 13]);
+      expect(rest).toEqual([]);
+    });
+
+    it("prefer ones you visit", () => {
+      const items = [bookmark("https://a.com/news", "News"), bookmark("https://b.com/news", "News", "", 1, 40)];
+      expect(ids(rank(items, "news", { now: NOW }))).toEqual(["bookmark:https://b.com/news", "bookmark:https://a.com/news"]);
+    });
+
+    it("only show with nothing typed when visited, among history", () => {
+      const items = [
+        bookmark("https://never.com", "Never visited"),
+        bookmark("https://seen.com", "Visited", "", 1),
+        visit("https://old.com", "Old", 50),
+        tab(1, "Tab", "https://t.com", 5),
+      ];
+      expect(ids(rank(items, "", { now: NOW }))).toEqual(["tab:1", "bookmark:https://seen.com", "history:https://old.com"]);
+    });
   });
 
   it("caps results", () => {

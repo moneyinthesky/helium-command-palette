@@ -5,21 +5,31 @@ export const MAX_RESULTS = 10;
 
 const HOUR = 60 * 60 * 1000;
 
-/** With nothing typed: open tabs, then history, then the tab you're already on. */
+/**
+ * With nothing typed: open tabs, then history, then the tab you're already on.
+ * A bookmarked page you've visited stands in for its history entry, which it hid.
+ */
 function tier(item: SourceItem): number {
-  if (item.kind === "history") return 1;
+  if (item.kind !== "tab") return 1;
   return item.isSource ? 0 : 2;
 }
+
+/** Bookmarks only show once you type, apart from visited ones standing in for history. */
+function showsWithoutQuery(item: SourceItem): boolean {
+  return item.kind !== "bookmark" || item.lastVisitTime > 0;
+}
+
+const KIND_ORDER: Record<SourceItem["kind"], number> = { history: 0, bookmark: 1, tab: 2 };
 
 /**
  * With a query, results are grouped by where the match lands (word start,
  * inside a word, scattered letters), and within each of those, open tabs come
- * before history. "ama" finds Amazon in history before a tab that only has it
- * inside "Ramaswamy". The tab you're already on is always last.
+ * first, then bookmarks, then history. "ama" finds Amazon in history before a
+ * tab that only has it inside "Ramaswamy". The tab you're already on is always last.
  */
 function group(item: SourceItem, quality: Quality): number {
   if (item.kind === "tab" && item.isSource) return 0;
-  return 1 + quality * 2 + (item.kind === "tab" ? 1 : 0);
+  return 1 + quality * 3 + KIND_ORDER[item.kind];
 }
 
 /** Larger than any match score plus boost, so groups never mix. */
@@ -27,6 +37,15 @@ const GROUP_SIZE = 1e6;
 
 function lastUsed(item: SourceItem): number {
   return item.kind === "tab" ? item.lastAccessed : item.lastVisitTime;
+}
+
+/** Frecency: visited often, typed by hand, visited lately. Up to about 35. */
+function frecency(visitCount: number, typedCount: number, lastVisitTime: number, now: number): number {
+  return (
+    Math.min(15, 3 * Math.log2(1 + visitCount)) +
+    Math.min(8, 4 * Math.log2(1 + typedCount)) +
+    recency(lastVisitTime, now, 12, 24)
+  );
 }
 
 /** Up to `max` for something used just now, halving after `halfLifeHours`. */
@@ -40,13 +59,11 @@ function boost(item: SourceItem, now: number): number {
   switch (item.kind) {
     case "tab":
       return recency(item.lastAccessed, now, 15, 6);
+    case "bookmark":
+      // A bookmark never visited counts from when it was made.
+      return frecency(item.visitCount, item.typedCount, item.lastVisitTime || item.dateAdded, now);
     case "history":
-      // Frecency: visited often, typed by hand, visited lately. Up to about 35.
-      return (
-        Math.min(15, 3 * Math.log2(1 + item.visitCount)) +
-        Math.min(8, 4 * Math.log2(1 + item.typedCount)) +
-        recency(item.lastVisitTime, now, 12, 24)
-      );
+      return frecency(item.visitCount, item.typedCount, item.lastVisitTime, now);
   }
 }
 
@@ -65,10 +82,11 @@ export function rank(
 
   for (const item of items) {
     if (tokens.length === 0) {
-      scored.push({ item, score: emptyQueryScore(item), titleMatches: [], urlMatches: [] });
+      if (!showsWithoutQuery(item)) continue;
+      scored.push({ item, score: emptyQueryScore(item), titleMatches: [], urlMatches: [], folderMatches: [] });
       continue;
     }
-    const m = matchFields(tokens, item.title, item.displayUrl);
+    const m = matchFields(tokens, item.title, item.displayUrl, item.kind === "bookmark" ? item.folder : "");
     if (!m) continue;
     scored.push({ item, ...m, score: group(item, m.quality) * GROUP_SIZE + m.score + boost(item, now) });
   }

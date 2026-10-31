@@ -1,4 +1,4 @@
-import type { HistoryItem, SourceItem } from "./types";
+import type { BookmarkItem, HistoryItem, SourceItem } from "./types";
 import { pageKey, titleKey } from "./url";
 
 /** Every key under which an item counts as "the same page" as another. */
@@ -8,13 +8,44 @@ function sameKeys(item: SourceItem): string[] {
 }
 
 /**
- * Combines items from every source. A page that's open in a tab only appears
- * as the tab, never again as a history entry.
+ * Combines items from every source, showing each page once: as a tab if it's
+ * open, else as a bookmark, else as history. A bookmark takes over the visit
+ * counts of the history entry it hides, so it ranks by how much you use it.
  */
 export function mergeItems(lists: SourceItem[][]): SourceItem[] {
   const all = lists.flat();
   const open = new Set(all.filter((i) => i.kind === "tab").flatMap(sameKeys));
-  return all.filter((i) => i.kind !== "history" || !sameKeys(i).some((k) => open.has(k)));
+  const isOpen = (i: SourceItem) => sameKeys(i).some((k) => open.has(k));
+
+  const bookmarks: BookmarkItem[] = [];
+  const bookmarksByKey = new Map<string, number[]>();
+  for (const item of all) {
+    if (item.kind !== "bookmark" || isOpen(item)) continue;
+    bookmarks.push({ ...item });
+    for (const k of sameKeys(item)) bookmarksByKey.set(k, [...(bookmarksByKey.get(k) ?? []), bookmarks.length - 1]);
+  }
+
+  const history: HistoryItem[] = [];
+  for (const item of all) {
+    if (item.kind !== "history" || isOpen(item)) continue;
+    // A page bookmarked in two folders gets the visits on both.
+    const matches = new Set(sameKeys(item).flatMap((k) => bookmarksByKey.get(k) ?? []));
+    if (matches.size === 0) {
+      history.push(item);
+      continue;
+    }
+    for (const index of matches) {
+      const b = bookmarks[index]!;
+      bookmarks[index] = {
+        ...b,
+        lastVisitTime: Math.max(b.lastVisitTime, item.lastVisitTime),
+        visitCount: b.visitCount + item.visitCount,
+        typedCount: b.typedCount + item.typedCount,
+      };
+    }
+  }
+
+  return [...all.filter((i) => i.kind === "tab"), ...bookmarks, ...history];
 }
 
 /**

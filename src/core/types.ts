@@ -30,6 +30,18 @@ export interface HistoryItem extends BaseItem {
   typedCount: number;
 }
 
+export interface BookmarkItem extends BaseItem {
+  kind: "bookmark";
+  /** Folders it's in, outermost first, e.g. "Work / Docs". Empty in a top-level folder. */
+  folder: string;
+  /** Epoch ms the bookmark was made. */
+  dateAdded: number;
+  /** Taken from the page's history entry when it has one; 0 otherwise. */
+  lastVisitTime: number;
+  visitCount: number;
+  typedCount: number;
+}
+
 /** The "search the web" row. Built from the query, not loaded from a source. */
 export interface SearchItem extends BaseItem {
   kind: "search";
@@ -37,13 +49,13 @@ export interface SearchItem extends BaseItem {
 }
 
 /** Items loaded from a source and ranked against the query. */
-export type SourceItem = TabItem | HistoryItem;
+export type SourceItem = TabItem | BookmarkItem | HistoryItem;
 
 /** Every kind of row; extension items join in a later step. */
 export type PaletteItem = SourceItem | SearchItem;
 
 /** Where palette items come from. Each is loaded separately so fast ones show first. */
-export const SOURCES = ["tabs", "history"] as const;
+export const SOURCES = ["tabs", "bookmarks", "history"] as const;
 export type SourceName = (typeof SOURCES)[number];
 
 export interface ScoredItem {
@@ -55,6 +67,8 @@ export interface ScoredItem {
   titleMatches: number[];
   /** Character positions in `item.displayUrl` that matched the query. */
   urlMatches: number[];
+  /** Character positions in a bookmark's `folder` that matched the query. */
+  folderMatches: number[];
 }
 
 /** A favicon's image bytes, sent from the service worker to the palette. */

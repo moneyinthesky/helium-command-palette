@@ -3,6 +3,7 @@ import type { SourceName } from "../core/types";
 import { execute } from "./actions";
 import { getFavicons } from "./favicons";
 import { togglePalette } from "./launcher";
+import { bookmarksProvider } from "./providers/bookmarks";
 import { historyProvider } from "./providers/history";
 import { tabsProvider } from "./providers/tabs";
 import type { Provider } from "./providers/types";
@@ -10,6 +11,7 @@ import type { Provider } from "./providers/types";
 const PALETTE_COMMAND = "toggle-palette";
 const providers: Record<SourceName, Provider> = {
   tabs: tabsProvider,
+  bookmarks: bookmarksProvider,
   history: historyProvider,
 };
 

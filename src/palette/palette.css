@@ -14,6 +14,7 @@
   --accent-3: #55e0d0;
   /* Row tint and badge colour, by kind of result. */
   --kind-tab: #5b7cfa;
+  --kind-bookmark: #c058c8;
   --kind-history: #d9973a;
   --kind-search: #1fa58f;
   --tint: 7%;
@@ -90,6 +91,10 @@
 
 .row[data-kind="tab"] {
   --kind: var(--kind-tab);
+}
+
+.row[data-kind="bookmark"] {
+  --kind: var(--kind-bookmark);
 }
 
 .row[data-kind="history"] {

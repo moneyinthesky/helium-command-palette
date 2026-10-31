@@ -48,6 +48,14 @@
 - [ ] From an empty new tab (fallback window), Enter opens it in that same tab, with no extra tab.
 - [ ] A site that's open in a tab doesn't also appear as history, even if the URLs differ by tracking parameters (for example, `?utm_source=…`).
 
+## Bookmarks
+
+- [ ] With nothing typed, bookmarks you've never visited don't appear.
+- [ ] Typing part of a bookmark's title finds it with a **Bookmark** badge and its folder path before the URL, e.g. "Work / Docs · example.com".
+- [ ] Typing a folder's name finds the bookmarks in it, with the folder name highlighted.
+- [ ] Enter opens it in a new tab next to the current one; ⌘Enter opens it in the current tab.
+- [ ] A bookmarked page you've visited shows once, as the bookmark, not also as history. If it's open in a tab, it shows only as the tab.
+
 ## Web search
 
 - [ ] Typing something that matches nothing shows only "Search the web for …" with a magnifier icon.

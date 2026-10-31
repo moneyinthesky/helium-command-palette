@@ -21,7 +21,7 @@ export function searchItem(query: string): SearchItem {
 export function withSearchRow(results: ScoredItem[], query: string, limit = MAX_RESULTS): ScoredItem[] {
   const text = query.trim();
   if (!text) return results;
-  const row: ScoredItem = { item: searchItem(text), score: 0, titleMatches: [], urlMatches: [] };
+  const row: ScoredItem = { item: searchItem(text), score: 0, titleMatches: [], urlMatches: [], folderMatches: [] };
   const best = results[0];
   const matchesWell =
     best !== undefined &&

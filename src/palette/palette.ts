@@ -20,6 +20,7 @@ const ICON_PIXELS = 32;
 
 const KIND_LABEL: Record<PaletteItem["kind"], string> = {
   tab: "Tab",
+  bookmark: "Bookmark",
   history: "History",
   search: "Search",
 };
@@ -29,6 +30,10 @@ const MOD_KEY = /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl+";
 /** Footer hints for the highlighted row, so ⌘Enter is discoverable. */
 const HINTS: Record<PaletteItem["kind"], [key: string, action: string][]> = {
   tab: [["↵", "Switch to tab"]],
+  bookmark: [
+    ["↵", "Open in new tab"],
+    [`${MOD_KEY}↵`, "Open here"],
+  ],
   history: [
     ["↵", "Open in new tab"],
     [`${MOD_KEY}↵`, "Open here"],
@@ -134,7 +139,7 @@ export class Palette {
     panel.setAttribute("aria-label", "Command palette");
 
     this.input.type = "text";
-    this.input.placeholder = "Search tabs, history or the web…";
+    this.input.placeholder = "Search tabs, bookmarks, history or the web…";
     this.input.spellcheck = false;
     this.input.autocomplete = "off";
     this.input.setAttribute("role", "combobox");
@@ -198,8 +203,9 @@ export class Palette {
     const row = el("li", "row");
     row.id = `row-${index}`;
     row.dataset.kind = item.kind; // styled per kind: tint and badge colour
-    // With nothing typed, history is just filler under the tabs: show it quieter.
-    if (item.kind === "history" && this.input.value.trim() === "") row.classList.add("dim");
+    // With nothing typed, history (and visited bookmarks standing in for it) is
+    // just filler under the tabs: show it quieter.
+    if (item.kind !== "tab" && this.input.value.trim() === "") row.classList.add("dim");
     row.setAttribute("role", "option");
 
     const icon = item.kind === "search" ? searchIcon() : this.favicon(item.url);
@@ -208,6 +214,11 @@ export class Palette {
     const title = el("div", "title");
     title.append(highlighted(item.title, result.titleMatches));
     const url = el("div", "url");
+    if (item.kind === "bookmark" && item.folder) {
+      const folder = el("span", "folder");
+      folder.append(highlighted(item.folder, result.folderMatches));
+      url.append(folder, " · ");
+    }
     url.append(highlighted(item.displayUrl, result.urlMatches));
     text.append(title, url);
 

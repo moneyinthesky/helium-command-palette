@@ -5,7 +5,7 @@ export interface ProviderContext {
   sourceTabId?: number;
 }
 
-/** A source of palette rows. Tabs and history today; search and extensions later. */
+/** A source of palette rows. Tabs, bookmarks and history today; extensions later. */
 export interface Provider {
   getItems(ctx: ProviderContext): Promise<SourceItem[]>;
 }

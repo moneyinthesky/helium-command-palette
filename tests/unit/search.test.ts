@@ -15,7 +15,7 @@ function result(id: number, quality: Quality, isSource = false): ScoredItem {
     lastAccessed: 0,
     isSource,
   };
-  return { item, score: 0, quality, titleMatches: [], urlMatches: [] };
+  return { item, score: 0, quality, titleMatches: [], urlMatches: [], folderMatches: [] };
 }
 
 const ids = (rows: ScoredItem[]) => rows.map((r) => r.item.id);

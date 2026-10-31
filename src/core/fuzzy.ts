@@ -77,28 +77,33 @@ export interface FieldMatch {
   quality: Quality;
   titleMatches: number[];
   urlMatches: number[];
+  folderMatches: number[];
 }
 
 /**
- * Every token must match the title or the URL, in any order ("pr github").
- * For each token the best-quality match wins; URL matches count for less than
- * title matches of the same quality. Fuzzy matching only applies to titles,
- * since subsequences of URLs are mostly noise.
+ * Every token must match the title, the URL or a bookmark's folder, in any
+ * order ("pr github"). For each token the best-quality match wins; URL and
+ * folder matches count for less than title matches of the same quality.
+ * Fuzzy matching only applies to titles, since subsequences of URLs are mostly
+ * noise.
  */
-export function matchFields(tokens: string[], title: string, url: string): FieldMatch | null {
+export function matchFields(tokens: string[], title: string, url: string, folder = ""): FieldMatch | null {
   let score = 0;
   let quality: Quality = Quality.WordStart;
   const titleMatches = new Set<number>();
   const urlMatches = new Set<number>();
+  const folderMatches = new Set<number>();
 
   for (const token of tokens) {
     const inTitle = matchSubstring(token, title);
     const inUrl = matchSubstring(token, url);
+    const inFolder = folder ? matchSubstring(token, folder) : null;
     const fuzzyTitle = inTitle ? null : matchSubsequence(token, title);
 
     const candidates: [Match | null, Set<number>, number][] = [
       [inTitle, titleMatches, 1],
       [inUrl, urlMatches, 0.8],
+      [inFolder, folderMatches, 0.6],
       [fuzzyTitle, titleMatches, 1],
     ];
     let best: [Match, Set<number>, number] | null = null;
@@ -118,5 +123,11 @@ export function matchFields(tokens: string[], title: string, url: string): Field
   }
 
   const sort = (s: Set<number>) => [...s].sort((a, b) => a - b);
-  return { score, quality, titleMatches: sort(titleMatches), urlMatches: sort(urlMatches) };
+  return {
+    score,
+    quality,
+    titleMatches: sort(titleMatches),
+    urlMatches: sort(urlMatches),
+    folderMatches: sort(folderMatches),
+  };
 }
