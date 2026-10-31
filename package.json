@@ -4,6 +4,7 @@
   "private": true,
   "description": "Arc-style command palette extension for Helium and Chrome",
   "type": "module",
+  "packageManager": "pnpm@8.6.12",
   "scripts": {
     "build": "node scripts/build.mjs",
     "dev": "node scripts/build.mjs --watch",
