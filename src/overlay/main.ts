@@ -69,6 +69,13 @@ function createOverlay(): Overlay {
     backdrop.className = "backdrop";
     const frame = document.createElement("div");
     frame.className = "frame";
+    // Animated border layers, behind the panel the palette mounts next.
+    for (const className of ["glow", "ring"]) {
+      const layer = document.createElement("div");
+      layer.className = className;
+      layer.setAttribute("aria-hidden", "true");
+      frame.append(layer);
+    }
     backdrop.append(frame);
     root.append(backdrop);
 

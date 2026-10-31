@@ -197,6 +197,7 @@ export class Palette {
     const { item } = result;
     const row = el("li", "row");
     row.id = `row-${index}`;
+    row.dataset.kind = item.kind; // styled per kind: tint and badge colour
     // With nothing typed, history is just filler under the tabs: show it quieter.
     if (item.kind === "history" && this.input.value.trim() === "") row.classList.add("dim");
     row.setAttribute("role", "option");

@@ -16,19 +16,66 @@
   animation: fade-in 80ms ease-out;
 }
 
+/*
+ * The panel sits inset by the border width on top of two layers: .ring (the
+ * border itself) and .glow (a blurred copy that spills outside). Each holds an
+ * oversized conic gradient that rotates. Rotating an element rather than
+ * animating an @property angle, because @property is ignored in shadow roots.
+ */
 .frame {
+  --border-width: 1.5px;
+  --comet-speed: 6s;
+  position: relative;
+  box-sizing: border-box;
   width: min(640px, calc(100vw - 32px));
   max-height: min(520px, 75vh);
   display: flex;
+  padding: var(--border-width);
   border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+}
+
+.ring,
+.glow {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
   overflow: hidden;
-  box-shadow:
-    0 0 0 1px var(--border),
-    0 20px 60px rgba(0, 0, 0, 0.35);
+}
+
+.ring {
+  background: var(--border);
+}
+
+.glow {
+  filter: blur(18px);
+  opacity: 0.45;
+}
+
+.ring::before,
+.glow::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 200%;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  background: conic-gradient(
+    transparent 0 58%,
+    color-mix(in oklab, var(--accent-1) 30%, transparent) 70%,
+    var(--accent-1) 84%,
+    var(--accent-2) 93%,
+    var(--accent-3) 98%,
+    transparent
+  );
+  animation: spin var(--comet-speed) linear infinite;
 }
 
 .panel {
+  position: relative;
   height: auto;
+  border-radius: calc(12px - var(--border-width));
 }
 
 @keyframes fade-in {
@@ -37,8 +84,16 @@
   }
 }
 
+@keyframes spin {
+  to {
+    rotate: 360deg;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .backdrop {
+  .backdrop,
+  .ring::before,
+  .glow::before {
     animation: none;
   }
 }
