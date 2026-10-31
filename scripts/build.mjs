@@ -12,15 +12,20 @@ await mkdir(dist, { recursive: true });
 
 const copyStatic = async () => {
   await cp(`${root}src/manifest.json`, `${dist}/manifest.json`);
+  await cp(`${root}src/popup/palette.html`, `${dist}/palette.html`);
 };
 
 /** @type {esbuild.BuildOptions} */
 const options = {
-  entryPoints: { "service-worker": `${root}src/background/service-worker.ts` },
+  entryPoints: {
+    "service-worker": `${root}src/background/service-worker.ts`,
+    palette: `${root}src/popup/main.ts`,
+  },
+  loader: { ".css": "text" },
   outdir: dist,
   bundle: true,
   format: "esm",
-  target: "chrome120",
+  target: "chrome121",
   sourcemap: watch ? "inline" : false,
   minify: !watch,
   logLevel: "info",

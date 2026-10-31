@@ -8,12 +8,17 @@
     "build": "node scripts/build.mjs",
     "dev": "node scripts/build.mjs --watch",
     "typecheck": "tsc --noEmit",
-    "check:shortcut": "node scripts/check-shortcut.mjs"
+    "check:shortcut": "node scripts/check-shortcut.mjs",
+    "test": "vitest run",
+    "test:e2e": "pnpm build && playwright test"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@types/chrome": "^0.3.7",
+    "@types/node": "^26.6.6",
     "esbuild": "^0.28.2",
     "playwright-core": "^1.64.1",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
   }
 }

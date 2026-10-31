@@ -1,0 +1,210 @@
+import { rank } from "../core/rank";
+import type { PaletteItem, ScoredItem } from "../core/types";
+import css from "./palette.css";
+
+/** What a surface (popup window, page overlay) provides to the palette. */
+export interface PaletteHost {
+  loadItems(): Promise<PaletteItem[]>;
+  execute(item: PaletteItem, opts: { newTab: boolean }): Promise<void>;
+  close(): void;
+}
+
+const KIND_LABEL: Record<PaletteItem["kind"], string> = {
+  tab: "Tab",
+};
+
+export function faviconUrl(pageUrl: string): string {
+  // Served from the browser's local favicon cache, so no network request.
+  const url = new URL(chrome.runtime.getURL("/_favicon/"));
+  url.searchParams.set("pageUrl", pageUrl);
+  url.searchParams.set("size", "32");
+  return url.href;
+}
+
+function el<K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  className?: string,
+): HTMLElementTagNameMap[K] {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  return node;
+}
+
+/** Text with the matched characters wrapped in <mark>. Never uses innerHTML: titles are untrusted. */
+function highlighted(text: string, matches: number[]): DocumentFragment {
+  const frag = document.createDocumentFragment();
+  const hits = new Set(matches);
+  let run = "";
+  let runIsHit = false;
+  const flush = () => {
+    if (!run) return;
+    if (runIsHit) {
+      const mark = el("mark");
+      mark.textContent = run;
+      frag.append(mark);
+    } else {
+      frag.append(run);
+    }
+    run = "";
+  };
+  for (let i = 0; i < text.length; i++) {
+    const hit = hits.has(i);
+    if (hit !== runIsHit) {
+      flush();
+      runIsHit = hit;
+    }
+    run += text[i];
+  }
+  flush();
+  return frag;
+}
+
+/** The palette panel: input plus result list. Mounted inside a shadow root by each surface. */
+export class Palette {
+  private items: PaletteItem[] = [];
+  private results: ScoredItem[] = [];
+  private selected = 0;
+  private busy = false;
+
+  private readonly input = el("input", "input");
+  private readonly list = el("ul", "results");
+  private readonly empty = el("div", "empty");
+
+  constructor(
+    private readonly root: ShadowRoot,
+    private readonly host: PaletteHost,
+  ) {}
+
+  mount(): void {
+    const style = el("style");
+    style.textContent = css;
+
+    const panel = el("div", "panel");
+    panel.setAttribute("role", "dialog");
+    panel.setAttribute("aria-label", "Command palette");
+
+    this.input.type = "text";
+    this.input.placeholder = "Search tabs…";
+    this.input.spellcheck = false;
+    this.input.autocomplete = "off";
+    this.input.setAttribute("role", "combobox");
+    this.input.setAttribute("aria-controls", "results");
+    this.input.setAttribute("aria-expanded", "true");
+    this.list.id = "results";
+    this.list.setAttribute("role", "listbox");
+    this.empty.hidden = true;
+
+    panel.append(this.input, this.list, this.empty);
+    this.root.append(style, panel);
+
+    this.input.addEventListener("input", () => this.update());
+    this.input.addEventListener("keydown", (e) => this.onKeyDown(e));
+    this.focus();
+
+    this.host.loadItems().then(
+      (items) => {
+        this.items = items;
+        this.update();
+      },
+      (err: unknown) => console.error("[palette] failed to load items", err),
+    );
+  }
+
+  focus(): void {
+    this.input.focus();
+  }
+
+  private update(): void {
+    this.results = rank(this.items, this.input.value);
+    this.selected = 0;
+    this.render();
+  }
+
+  private render(): void {
+    this.list.replaceChildren(...this.results.map((r, i) => this.renderRow(r, i)));
+    this.empty.hidden = this.results.length > 0;
+    this.empty.textContent = this.items.length === 0 ? "" : "No matching tabs";
+    this.syncSelection();
+  }
+
+  private renderRow(result: ScoredItem, index: number): HTMLLIElement {
+    const { item } = result;
+    const row = el("li", "row");
+    row.id = `row-${index}`;
+    row.setAttribute("role", "option");
+
+    const icon = el("img", "icon");
+    icon.alt = "";
+    icon.src = faviconUrl(item.url);
+
+    const text = el("div", "text");
+    const title = el("div", "title");
+    title.append(highlighted(item.title, result.titleMatches));
+    const url = el("div", "url");
+    url.append(highlighted(item.displayUrl, result.urlMatches));
+    text.append(title, url);
+
+    const badge = el("span", "badge");
+    badge.textContent = KIND_LABEL[item.kind];
+
+    row.append(icon, text, badge);
+    row.addEventListener("mousemove", () => {
+      if (this.selected !== index) {
+        this.selected = index;
+        this.syncSelection();
+      }
+    });
+    row.addEventListener("mousedown", (e) => e.preventDefault()); // keep focus in the input
+    row.addEventListener("click", (e) => void this.run(index, e.metaKey || e.ctrlKey));
+    return row;
+  }
+
+  private syncSelection(): void {
+    for (const [i, row] of [...this.list.children].entries()) {
+      const on = i === this.selected;
+      row.setAttribute("aria-selected", String(on));
+      if (on) row.scrollIntoView({ block: "nearest" });
+    }
+    if (this.results.length > 0) {
+      this.input.setAttribute("aria-activedescendant", `row-${this.selected}`);
+    } else {
+      this.input.removeAttribute("aria-activedescendant");
+    }
+  }
+
+  private move(delta: number): void {
+    const n = this.results.length;
+    if (n === 0) return;
+    this.selected = (this.selected + delta + n) % n;
+    this.syncSelection();
+  }
+
+  private onKeyDown(e: KeyboardEvent): void {
+    const ctrlOnly = e.ctrlKey && !e.metaKey && !e.altKey;
+    if (e.key === "ArrowDown" || (ctrlOnly && e.key === "n")) {
+      this.move(1);
+    } else if (e.key === "ArrowUp" || (ctrlOnly && e.key === "p")) {
+      this.move(-1);
+    } else if (e.key === "Enter" && !e.isComposing) {
+      void this.run(this.selected, e.metaKey || e.ctrlKey);
+    } else if (e.key === "Escape") {
+      this.host.close();
+    } else {
+      return;
+    }
+    e.preventDefault();
+  }
+
+  private async run(index: number, newTab: boolean): Promise<void> {
+    const result = this.results[index];
+    if (!result || this.busy) return;
+    this.busy = true;
+    try {
+      await this.host.execute(result.item, { newTab });
+    } catch (err) {
+      console.error("[palette] action failed", err);
+    } finally {
+      this.host.close();
+    }
+  }
+}

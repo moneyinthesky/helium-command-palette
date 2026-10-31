@@ -1,13 +1,38 @@
-export const PALETTE_COMMAND = "toggle-palette";
+import type { Request, Response } from "../core/messages";
+import type { PaletteItem } from "../core/types";
+import { execute } from "./actions";
+import { togglePaletteWindow } from "./palette-window";
+import { tabsProvider } from "./providers/tabs";
+import type { Provider, ProviderContext } from "./providers/types";
 
-export async function handleCommand(command: string, tab?: chrome.tabs.Tab): Promise<void> {
-  if (command !== PALETTE_COMMAND) return;
-  // Step 0: prove the shortcut reaches the worker. The palette itself lands in step 1.
-  console.log(`[palette] ${command} fired`, { tabId: tab?.id, url: tab?.url });
+const PALETTE_COMMAND = "toggle-palette";
+const providers: Provider[] = [tabsProvider];
+
+async function snapshot(ctx: ProviderContext): Promise<PaletteItem[]> {
+  const lists = await Promise.all(providers.map((p) => p.getItems(ctx)));
+  return lists.flat();
 }
 
+async function handleRequest(req: Request): Promise<unknown> {
+  switch (req.type) {
+    case "snapshot":
+      return snapshot({ sourceTabId: req.sourceTabId });
+    case "execute":
+      await execute(req.item, req.newTab);
+      return null;
+  }
+}
+
+chrome.runtime.onMessage.addListener((req: Request, _sender, sendResponse) => {
+  handleRequest(req).then(
+    (data) => sendResponse({ ok: true, data } satisfies Response),
+    (err: unknown) => sendResponse({ ok: false, error: String(err) } satisfies Response),
+  );
+  return true; // respond asynchronously
+});
+
 chrome.commands.onCommand.addListener((command, tab) => {
-  void handleCommand(command, tab);
+  if (command === PALETTE_COMMAND) void togglePaletteWindow(tab);
 });
 
 chrome.runtime.onInstalled.addListener(async () => {
@@ -17,7 +42,5 @@ chrome.runtime.onInstalled.addListener(async () => {
   const palette = commands.find((c) => c.name === PALETTE_COMMAND);
   if (!palette?.shortcut) {
     console.warn("[palette] shortcut not assigned; set one at chrome://extensions/shortcuts");
-  } else {
-    console.log(`[palette] shortcut: ${palette.shortcut}`);
   }
 });
