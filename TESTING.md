@@ -93,7 +93,7 @@
 
 ## Actions menu
 
-- [ ] Tab on a row shows its actions, with the row's title above them, and the cursor stays in the input. → does the same when the cursor is at the end of your text, and otherwise just moves the cursor.
+- [ ] Tab on a row shows its actions, under a header showing that row (favicon, title, badge, in the row's colour), and the cursor stays in the input. → does the same when the cursor is at the end of your text, and otherwise just moves the cursor.
 - [ ] Typing filters the actions; Enter runs the highlighted one. Esc, Tab, or ← with nothing typed goes back to the results with your text and highlight as they were. Esc again closes the palette.
 - [ ] Pin, Mute and Reload on a tab do that to the tab, keep the palette open, and update the row (badge **Pinned**, muted speaker).
 - [ ] Mute is only listed for a tab playing sound. A muted tab lists Unmute, even after it goes quiet. A silent, unmuted tab lists neither.
@@ -107,6 +107,7 @@
 - [ ] Light mode: readable, with a clearly visible highlighted row.
 - [ ] Dark mode (System Settings → Appearance): the overlay and the fallback window both switch to dark.
 - [ ] Long titles and URLs are cut off with "…" rather than wrapping.
+- [ ] In the actions menu, every action has an icon in a coloured square: actions that go somewhere in the row's colour (blue for tabs, magenta for bookmarks, amber for history, green for search), copying in violet, tab changes in slate, closing in red. The highlighted action is tinted in its own colour, in light and dark mode.
 
 ## Chrome
 

@@ -23,9 +23,16 @@ export interface Shortcut {
   mod: boolean;
 }
 
+/**
+ * What sort of action it is, which the menu shows by colour: going somewhere
+ * (in the row's own colour), copying, changing a tab, or closing it.
+ */
+export type Tone = "go" | "copy" | "manage" | "close";
+
 export interface Action {
   id: ActionId;
   label: string;
+  tone: Tone;
   shortcut?: Shortcut;
   /** Leaves the palette open, with the tab's row updated or removed, so you can carry on. */
   staysOpen?: boolean;
@@ -34,16 +41,16 @@ export interface Action {
 const ENTER: Shortcut = { key: "Enter", mod: false };
 const MOD_ENTER: Shortcut = { key: "Enter", mod: true };
 
-const COPY_LINK: Action = { id: "copyLink", label: "Copy link" };
-const COPY_MARKDOWN: Action = { id: "copyMarkdown", label: "Copy as Markdown link" };
+const COPY_LINK: Action = { id: "copyLink", label: "Copy link", tone: "copy" };
+const COPY_MARKDOWN: Action = { id: "copyMarkdown", label: "Copy as Markdown link", tone: "copy" };
 
 /**
  * Mute only for a tab that's making sound, so the menu stays short. Unmute for
  * any muted tab, even one that's gone quiet: there'd be no other way to undo it here.
  */
 function soundAction(tab: TabItem): Action[] {
-  if (tab.muted) return [{ id: "unmute", label: "Unmute tab", staysOpen: true }];
-  if (tab.audible) return [{ id: "mute", label: "Mute tab", staysOpen: true }];
+  if (tab.muted) return [{ id: "unmute", label: "Unmute tab", tone: "manage", staysOpen: true }];
+  if (tab.audible) return [{ id: "mute", label: "Mute tab", tone: "manage", staysOpen: true }];
   return [];
 }
 
@@ -55,31 +62,31 @@ export function actionsFor(item: PaletteItem): Action[] {
   switch (item.kind) {
     case "tab":
       return [
-        { id: "open", label: "Switch to tab", shortcut: ENTER },
-        { id: "closeTab", label: "Close tab", shortcut: { key: "Backspace", mod: true }, staysOpen: true },
+        { id: "open", label: "Switch to tab", tone: "go", shortcut: ENTER },
+        { id: "closeTab", label: "Close tab", tone: "close", shortcut: { key: "Backspace", mod: true }, staysOpen: true },
         COPY_LINK,
         item.pinned
-          ? { id: "unpin", label: "Unpin tab", staysOpen: true }
-          : { id: "pin", label: "Pin tab", staysOpen: true },
+          ? { id: "unpin", label: "Unpin tab", tone: "manage", staysOpen: true }
+          : { id: "pin", label: "Pin tab", tone: "manage", staysOpen: true },
         ...soundAction(item),
-        { id: "reload", label: "Reload tab", staysOpen: true },
-        { id: "duplicate", label: "Duplicate tab" },
-        { id: "moveToWindow", label: "Move to new window" },
+        { id: "reload", label: "Reload tab", tone: "manage", staysOpen: true },
+        { id: "duplicate", label: "Duplicate tab", tone: "manage" },
+        { id: "moveToWindow", label: "Move to new window", tone: "manage" },
         COPY_MARKDOWN,
       ];
     case "search":
       return [
-        { id: "open", label: "Search in new tab", shortcut: ENTER },
-        { id: "openHere", label: "Search here", shortcut: MOD_ENTER },
-        { id: "openWindow", label: "Search in new window" },
+        { id: "open", label: "Search in new tab", tone: "go", shortcut: ENTER },
+        { id: "openHere", label: "Search here", tone: "go", shortcut: MOD_ENTER },
+        { id: "openWindow", label: "Search in new window", tone: "go" },
       ];
     case "bookmark":
     case "history":
     case "url":
       return [
-        { id: "open", label: "Open in new tab", shortcut: ENTER },
-        { id: "openHere", label: "Open here", shortcut: MOD_ENTER },
-        { id: "openWindow", label: "Open in new window" },
+        { id: "open", label: "Open in new tab", tone: "go", shortcut: ENTER },
+        { id: "openHere", label: "Open here", tone: "go", shortcut: MOD_ENTER },
+        { id: "openWindow", label: "Open in new window", tone: "go" },
         COPY_LINK,
         COPY_MARKDOWN,
       ];

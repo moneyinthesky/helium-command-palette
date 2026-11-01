@@ -18,6 +18,10 @@
   --kind-history: #d9973a;
   --kind-search: #1fa58f;
   --tint: 7%;
+  /* Icon colours in the actions menu, by what sort of action it is. */
+  --tone-copy: #8b5cf6;
+  --tone-manage: #64748b;
+  --tone-close: #e5484d;
   /* Tab group colours, as in the tab strip. */
   --group-grey: #5f6368;
   --group-blue: #1a73e8;
@@ -41,6 +45,9 @@
     --mark: #6aa9ff;
     --badge-bg: rgba(255, 255, 255, 0.08);
     --tint: 10%;
+    --tone-copy: #b39dff;
+    --tone-manage: #a3b1c6;
+    --tone-close: #ff6b6b;
     --group-grey: #dadce0;
     --group-blue: #8ab4f8;
     --group-red: #f28b82;
@@ -108,27 +115,68 @@
   background: color-mix(in oklab, var(--kind) var(--tint), transparent);
 }
 
-.row[data-kind="tab"] {
+/* Results, and the header of the actions menu, are tinted by kind. */
+[data-kind="tab"] {
   --kind: var(--kind-tab);
 }
 
-.row[data-kind="bookmark"] {
+[data-kind="bookmark"] {
   --kind: var(--kind-bookmark);
 }
 
-.row[data-kind="history"] {
+[data-kind="history"] {
   --kind: var(--kind-history);
 }
 
 /* Both rows act on what you typed, so they share a colour. */
-.row[data-kind="search"],
-.row[data-kind="url"] {
+[data-kind="search"],
+[data-kind="url"] {
   --kind: var(--kind-search);
 }
 
-/* Rows in the actions menu: no tint, the shortcut (if any) on the right. */
+/* Actions that go somewhere take the colour of the row they're for. */
+.results[data-for="tab"] {
+  --menu-kind: var(--kind-tab);
+}
+
+.results[data-for="bookmark"] {
+  --menu-kind: var(--kind-bookmark);
+}
+
+.results[data-for="history"] {
+  --menu-kind: var(--kind-history);
+}
+
+.results[data-for="search"],
+.results[data-for="url"] {
+  --menu-kind: var(--kind-search);
+}
+
+/*
+ * Rows in the actions menu: an icon chip coloured by what sort of action it
+ * is, the label, and the shortcut (if any) on the right. Only the highlighted
+ * one is tinted, in its own colour.
+ */
+.row[data-tone="go"] {
+  --tone: var(--menu-kind);
+}
+
+.row[data-tone="copy"] {
+  --tone: var(--tone-copy);
+}
+
+.row[data-tone="manage"] {
+  --tone: var(--tone-manage);
+}
+
+.row[data-tone="close"] {
+  --tone: var(--tone-close);
+}
+
 .row[data-kind="action"] {
-  --kind: transparent;
+  --kind: var(--tone);
+  --tint: 0%;
+  padding: 6px 10px;
 }
 
 .row[data-kind="action"] .title {
@@ -136,14 +184,32 @@
   min-width: 0;
 }
 
-/* Above the actions menu: which row the actions are for. */
+.chip {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: color-mix(in oklab, var(--tone) 15%, transparent);
+}
+
+.chip .glyph {
+  width: 15px;
+  height: 15px;
+  stroke: color-mix(in oklab, var(--tone) 85%, var(--fg));
+}
+
+/* Above the actions menu: the row the actions are for, in its own colour. */
 .crumb {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 14px 0;
-  color: var(--muted);
-  font-size: 12px;
+  gap: 10px;
+  margin: 6px 6px 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--kind) var(--tint), transparent);
+  font-size: 13px;
 }
 
 .crumb[hidden] {
@@ -151,6 +217,8 @@
 }
 
 .crumb-title {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -160,12 +228,20 @@
   flex: none;
   width: 12px;
   height: 12px;
+  margin-right: -4px;
 }
 
 /* The selection layer goes over the kind tint rather than replacing it. */
 .row[aria-selected="true"] {
   background-image: linear-gradient(var(--selected), var(--selected));
   box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--accent-1) 55%, transparent);
+}
+
+/* A highlighted action is tinted and outlined in its own colour, without the grey layer, which would muddy it. */
+.row[data-kind="action"][aria-selected="true"] {
+  --tint: 12%;
+  background-image: none;
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--tone) 45%, transparent);
 }
 
 .icon {

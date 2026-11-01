@@ -36,7 +36,8 @@ test.describe("actions menu", () => {
 
     await palette.keyboard.press("Tab");
     await expect(crumb).toBeVisible();
-    await expect(crumb).toHaveText("Bravo page");
+    await expect(crumb.locator(".crumb-title")).toHaveText("Bravo page");
+    await expect(crumb.locator(".badge")).toHaveText("Tab");
     await expect(input).toHaveValue("");
     await expect(input).toBeFocused();
     await expect(titles.first()).toHaveText("Switch to tab");

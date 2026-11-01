@@ -54,8 +54,10 @@ function shortcutLabel({ key, mod }: Shortcut): string {
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
+type Shapes = [tag: string, attrs: Record<string, string>][];
+
 /** A 16×16 line icon in the text colour, from shapes given as [tag, attributes]. */
-function glyph(shapes: [tag: string, attrs: Record<string, string>][], className = "icon"): SVGSVGElement {
+function glyph(shapes: Shapes, className = "icon"): SVGSVGElement {
   const svg = document.createElementNS(SVG_NS, "svg");
   svg.setAttribute("class", `${className} glyph`);
   svg.setAttribute("viewBox", "0 0 16 16");
@@ -66,6 +68,13 @@ function glyph(shapes: [tag: string, attrs: Record<string, string>][], className
     svg.append(shape);
   }
   return svg;
+}
+
+function badge(item: PaletteItem): HTMLSpanElement {
+  const badge = el("span", "badge");
+  // Still a tab, so still the tab colour; the label sets it apart.
+  badge.textContent = item.kind === "tab" && item.pinned ? "Pinned" : KIND_LABEL[item.kind];
+  return badge;
 }
 
 /** The arrow before the row's title at the top of the actions menu. */
@@ -88,17 +97,72 @@ const globeIcon = () =>
 
 const SPEAKER = "M2.5 6H5l3-2.5v9L5 10H2.5z";
 
+const SPEAKER_WAVES: Shapes = [
+  ["path", { d: SPEAKER }],
+  ["path", { d: "M10.5 5.5a3.5 3.5 0 0 1 0 5M12.5 3.5a6.4 6.4 0 0 1 0 9" }],
+];
+const SPEAKER_MUTED: Shapes = [
+  ["path", { d: SPEAKER }],
+  ["path", { d: "M10.5 6l4 4M14.5 6l-4 4" }],
+];
+const PIN: Shapes = [["path", { d: "M5.5 2.5h5M6.5 2.5V6l-2 2.5h7l-2-2.5V2.5M8 8.5V14" }]];
+const WINDOW: Shapes = [
+  ["rect", { x: "2.5", y: "3", width: "11", height: "10", rx: "1.5" }],
+  ["path", { d: "M2.5 6h11" }],
+];
+
+/** An icon for each action, in the same line style as the row glyphs. */
+const ACTION_ICONS: Record<ActionId, Shapes> = {
+  // A new tab: a page with a plus.
+  open: [
+    ["path", { d: "M9 2.5H4.5a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V6" }],
+    ["path", { d: "M10.5 2v4M8.5 4h4" }],
+  ],
+  // Enter's return arrow: in place.
+  openHere: [
+    ["path", { d: "M12.5 3.5v4a2 2 0 0 1-2 2h-7" }],
+    ["path", { d: "M6 6.5 3 9.5l3 3" }],
+  ],
+  openWindow: WINDOW,
+  closeTab: [["path", { d: "M4.5 4.5l7 7M11.5 4.5l-7 7" }]],
+  pin: PIN,
+  unpin: [...PIN, ["path", { d: "M3 3l10 10" }]],
+  mute: SPEAKER_MUTED,
+  unmute: SPEAKER_WAVES,
+  reload: [
+    ["path", { d: "M12.5 8a4.5 4.5 0 1 1-1.3-3.2" }],
+    ["path", { d: "M12.5 2.5v3h-3" }],
+  ],
+  duplicate: [
+    ["rect", { x: "5.5", y: "5.5", width: "8", height: "8", rx: "1.5" }],
+    ["path", { d: "M3 10.5V4a1 1 0 0 1 1-1h6.5" }],
+  ],
+  moveToWindow: [
+    ["path", { d: "M7.5 3H3.5a1 1 0 0 0-1 1v8.5a1 1 0 0 0 1 1H12a1 1 0 0 0 1-1V8.5" }],
+    ["path", { d: "M9.5 2.5h4v4M13.5 2.5 8 8" }],
+  ],
+  copyLink: [
+    ["path", { d: "M7 9a2.5 2.5 0 0 0 3.5 0l2-2A2.5 2.5 0 0 0 9 3.5l-.75.75" }],
+    ["path", { d: "M9 7a2.5 2.5 0 0 0-3.5 0l-2 2A2.5 2.5 0 0 0 7 12.5l.75-.75" }],
+  ],
+  // An "M" in square brackets.
+  copyMarkdown: [
+    ["path", { d: "M4.5 3H3v10h1.5M11.5 3H13v10h-1.5" }],
+    ["path", { d: "M5.5 10.5v-5L8 8.5l2.5-3v5" }],
+  ],
+};
+
+/** Switching to a tab gets an arrow into it; searching gets the magnifier, as on the search row. */
+function actionIcon(item: PaletteItem, action: ActionId): SVGSVGElement {
+  if (action === "open" && item.kind === "tab") {
+    return glyph([["path", { d: "M2.5 8h7.5M7 5l3 3-3 3" }], ["path", { d: "M10.5 3h2a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-2" }]]);
+  }
+  if (action === "open" && item.kind === "search") return searchIcon();
+  return glyph(ACTION_ICONS[action]);
+}
+
 /** Small icons after a tab's title, labelled for screen readers. Pinned tabs say so on their badge instead. */
-const STATE_ICONS = {
-  audible: [
-    ["path", { d: SPEAKER }],
-    ["path", { d: "M10.5 5.5a3.5 3.5 0 0 1 0 5M12.5 3.5a6.4 6.4 0 0 1 0 9" }],
-  ],
-  muted: [
-    ["path", { d: SPEAKER }],
-    ["path", { d: "M10.5 6l4 4M14.5 6l-4 4" }],
-  ],
-} satisfies Record<string, [string, Record<string, string>][]>;
+const STATE_ICONS = { audible: SPEAKER_WAVES, muted: SPEAKER_MUTED } satisfies Record<string, Shapes>;
 
 const STATE_LABEL: Record<keyof typeof STATE_ICONS, string> = {
   audible: "Playing sound",
@@ -288,8 +352,7 @@ export class Palette {
     const { item } = result;
     const row = this.optionRow(index, item.kind); // styled per kind: tint and badge colour
 
-    const icon =
-      item.kind === "search" ? searchIcon() : this.favicon(item.url, item.kind === "url" ? globeIcon : undefined);
+    const icon = this.rowIcon(item);
 
     const text = el("div", "text");
     const line = el("div", "line");
@@ -316,17 +379,13 @@ export class Palette {
     url.append(highlighted(item.displayUrl, result.urlMatches));
     text.append(line, url);
 
-    const badge = el("span", "badge");
-    // Still a tab, so still the tab colour; the label sets it apart.
-    badge.textContent = item.kind === "tab" && item.pinned ? "Pinned" : KIND_LABEL[item.kind];
-
     row.append(icon, text);
     if (item.kind === "tab" && item.otherWindow) {
       const where = el("span", "where");
       where.textContent = "Other window";
       row.append(where);
     }
-    row.append(badge);
+    row.append(badge(item));
     row.addEventListener("click", (e) => {
       const actions = actionsFor(item);
       void this.perform(item, actionForKey(actions, { key: "Enter", mod: e.metaKey || e.ctrlKey })!);
@@ -336,9 +395,12 @@ export class Palette {
 
   private renderAction({ action, matches }: ShownAction, index: number): HTMLLIElement {
     const row = this.optionRow(index, "action");
+    row.dataset.tone = action.tone; // the icon chip's colour
+    const chip = el("span", "chip");
+    chip.append(actionIcon(this.menu!.item, action.id));
     const label = el("div", "title");
     label.append(highlighted(action.label, matches));
-    row.append(label);
+    row.append(chip, label);
     if (action.shortcut) {
       const kbd = el("kbd");
       kbd.textContent = shortcutLabel(action.shortcut);
@@ -362,6 +424,10 @@ export class Palette {
     });
     row.addEventListener("mousedown", (e) => e.preventDefault()); // keep focus in the input
     return row;
+  }
+
+  private rowIcon(item: PaletteItem): Element {
+    return item.kind === "search" ? searchIcon() : this.favicon(item.url, item.kind === "url" ? globeIcon : undefined);
   }
 
   /** The page's favicon, or `fallback` in its place when the browser has none cached. */
@@ -480,7 +546,12 @@ export class Palette {
     };
     this.input.value = "";
     this.input.placeholder = "Filter actions…";
-    this.crumb.replaceChildren(backIcon(), Object.assign(el("span", "crumb-title"), { textContent: result.item.title }));
+    // The row the actions are for, in its own colour, which the actions that go somewhere share.
+    const title = el("span", "crumb-title");
+    title.textContent = result.item.title;
+    this.crumb.replaceChildren(backIcon(), this.rowIcon(result.item), title, badge(result.item));
+    this.crumb.dataset.kind = result.item.kind;
+    this.list.dataset.for = result.item.kind;
     this.crumb.hidden = false;
     this.selected = 0;
     this.render();
@@ -506,6 +577,7 @@ export class Palette {
     this.input.value = menu.query;
     this.input.placeholder = PLACEHOLDER;
     this.crumb.hidden = true;
+    delete this.list.dataset.for;
     // Results may have changed behind the menu, as more sources loaded.
     const index = this.results.findIndex((r) => r.item.id === menu.resultId);
     this.selected = index >= 0 ? index : Math.min(menu.resultIndex, Math.max(0, this.results.length - 1));
